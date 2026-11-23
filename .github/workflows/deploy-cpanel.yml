@@ -62,8 +62,8 @@ jobs:
             printf 'Deployment stopped before FTPS because configuration is missing: %s\n' "${missing[*]}"
             exit 1
           fi
-          if [[ "$FTPS_HOST" != "ftp.mightyhomefinds.com" || "$FTPS_PORT" != "21" ]]; then
-            echo "Configure the FTPS server as ftp.mightyhomefinds.com on port 21."
+          if [[ "$FTPS_HOST" != "cloud207.cloudwebhosting.com" || "$FTPS_PORT" != "21" ]]; then
+            echo "Configure the FTPS server as cloud207.cloudwebhosting.com on port 21."
             exit 1
           fi
 

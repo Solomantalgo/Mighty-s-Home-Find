@@ -19,7 +19,7 @@ The FTP account must be restricted to this application root. The workflow upload
 
 The workflow is [`.github/workflows/deploy-cpanel.yml`](../.github/workflows/deploy-cpanel.yml). In the repository's **Settings → Secrets and variables → Actions → Secrets**, configure:
 
-- `CPANEL_FTP_SERVER` = `ftp.mightyhomefinds.com`
+- `CPANEL_FTP_SERVER` = `cloud207.cloudwebhosting.com` (use the hostname on the FTPS certificate)
 - `CPANEL_FTP_PORT` = `21`
 - `CPANEL_FTP_USERNAME` = the cPanel FTP account username
 - `CPANEL_FTP_PASSWORD` = the cPanel FTP account password
