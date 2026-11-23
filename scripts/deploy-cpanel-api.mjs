@@ -21,7 +21,10 @@ async function responseJson(response, label) {
   try {
     payload = JSON.parse(text);
   } catch {
-    throw new Error(`${label} returned HTTP ${response.status} with a non-JSON response.`);
+    const preview = text.slice(0, 500).replaceAll(token, "[redacted]").replaceAll(/\s+/g, " ");
+    throw new Error(
+      `${label} returned HTTP ${response.status} (${response.headers.get("content-type") ?? "unknown content type"}) with a non-JSON response: ${preview}`,
+    );
   }
 
   if (!response.ok) {
