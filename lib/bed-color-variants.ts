@@ -1,9 +1,9 @@
-export type BedDesignId = "classic-spindle" | "square-grid" | "arched-rail";
+export type BedDesignId = "classic-spindle" | "square-grid" | "arched-rail" | "double-lowline";
 export type FinishId = "matte-black" | "white" | "graphite-grey" | "antique-bronze" | "deep-navy";
 export type BedImageState = "frame" | "dressed";
 
 /** Exact generated sample paths; every state and finish uses its corresponding image asset. */
-export const bedCatalogVariants: Record<BedDesignId, Record<FinishId, Record<BedImageState, string>>> = {
+export const bedCatalogVariants: Record<Exclude<BedDesignId, "double-lowline">, Record<FinishId, Record<BedImageState, string>>> = {
   "classic-spindle": {
     "matte-black": { frame: "classic-spindle-matte-black-frame.webp", dressed: "classic-spindle-matte-black-dressed.webp" },
     white: { frame: "classic-spindle-white-frame.webp", dressed: "classic-spindle-white-dressed.webp" },
@@ -27,5 +27,9 @@ export const bedCatalogVariants: Record<BedDesignId, Record<FinishId, Record<Bed
   },
 };
 
-export const getCatalogVariantImage = (design: BedDesignId, finish: FinishId, state: BedImageState) =>
-  `/assets/bed-catalog-variants/${bedCatalogVariants[design][finish][state]}`;
+export const getCatalogVariantImage = (design: BedDesignId, finish: FinishId, state: BedImageState) => {
+  if (design === "double-lowline") {
+    return `/assets/bed-catalog-variants/double-lowline-${finish}-${state}.png`;
+  }
+  return `/assets/bed-catalog-variants/${bedCatalogVariants[design][finish][state]}`;
+};

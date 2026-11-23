@@ -266,4 +266,10 @@ body.cart-drawer-open { overflow: hidden; }
 }
 .category-photo{isolation:isolate}
 .category-concept-badge{position:absolute;z-index:2;left:7px;top:7px;padding:4px 7px;border:1px solid #fff9;border-radius:12px;background:#fffaf0e8;color:#5b482f;font-size:7px;font-weight:700;letter-spacing:.25px;text-transform:uppercase}
+.category-models-unavailable{margin:0;max-width:380px;padding:12px 14px;border:1px dashed #d5c9b8;border-radius:9px;background:#f8f3ea;color:#6b6256;font-size:10px;line-height:1.45}
+.category-preview-unavailable{max-width:1160px;min-height:260px;margin:0 auto 24px;padding:42px 24px;display:grid;place-items:center;align-content:center;text-align:center;border:1px solid #e7ddd1;border-radius:12px;background:linear-gradient(140deg,#fffaf3,#f2ebdf);color:#51483c}
+.preview-placeholder-icon{width:48px;height:48px;display:grid;place-items:center;border-radius:50%;background:#e9ddc9;color:#7b5b2e}
+.category-preview-unavailable h1{margin:13px 0 5px;font:600 27px/1.15 var(--serif);color:var(--espresso)}
+.category-preview-unavailable p{max-width:470px;margin:0;font-size:12px;line-height:1.6;color:#766e64}
+@media(max-width:760px){.category-preview-unavailable{min-height:230px;margin:0 12px 24px;padding:28px 20px}.category-preview-unavailable h1{font-size:23px}.category-preview-unavailable p{font-size:11px}}
 

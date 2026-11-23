@@ -34,6 +34,10 @@ import {
 import { getCatalogVariantImage, type FinishId } from "@/lib/bed-color-variants";
 
 type ViewMode = "compare" | "frame" | "dressed";
+const categoryHasModel = (
+  category: (typeof categories)[number],
+  productId: string,
+) => (category.modelIds as readonly string[]).includes(productId);
 
 export function ProductExperience({
   product: initialProduct,
@@ -47,6 +51,14 @@ export function ProductExperience({
   const { addItem } = useCart();
   const [productId, setProductId] = useState(initialProduct.id);
   const [activeCategorySlug, setActiveCategorySlug] = useState(categorySlug);
+  const [categoryUnavailable, setCategoryUnavailable] = useState(() => {
+    const initialCategory = categories.find(
+      (item) => item.slug === categorySlug,
+    );
+    return Boolean(
+      initialCategory && !categoryHasModel(initialCategory, initialProduct.id),
+    );
+  });
   const product =
     products.find((item) => item.id === productId) ?? initialProduct;
   const activeCategory =
@@ -81,6 +93,7 @@ export function ProductExperience({
   const modelChoices = activeCategory.modelIds
     .map((id) => products.find((item) => item.id === id))
     .filter((item): item is BedProduct => Boolean(item));
+  const relatedModels = modelChoices.filter((item) => item.id !== product.id);
   const unitPrice = bedMeasurementPrice(selectedMeasurement);
   const total = unitPrice * quantity;
   function selectModel(
@@ -93,6 +106,7 @@ export function ProductExperience({
       ) ?? nextProduct.finishes[0];
     setActiveCategorySlug(nextCategorySlug);
     setProductId(nextProduct.id);
+    setCategoryUnavailable(false);
     setFinishId(nextFinish.id);
     setQuantity(1);
     setDesignPickerOpen(false);
@@ -103,7 +117,13 @@ export function ProductExperience({
     const category = categories.find((item) => item.slug === slug);
     if (!category) return;
     const next = products.find((item) => item.id === category.defaultProductId);
-    if (next) selectModel(next, category.slug);
+    if (next && categoryHasModel(category, next.id)) {
+      selectModel(next, category.slug);
+      return;
+    }
+    setActiveCategorySlug(category.slug);
+    setCategoryUnavailable(true);
+    setDesignPickerOpen(false);
   }
   function addToCart() {
     addItem({
@@ -166,6 +186,11 @@ export function ProductExperience({
           </div>
           <div className="bed-selector-group model-selector">
             <strong>{activeCategory.modelHeading}</strong>
+            {modelChoices.length === 0 ? (
+              <p className="category-models-unavailable">
+                Matched bed previews for this category are being prepared.
+              </p>
+            ) : (
             <div className="design-picker">
               <button
                 type="button"
@@ -208,8 +233,21 @@ export function ProductExperience({
                 </div>
               )}
             </div>
+            )}
           </div>
         </section>
+        {categoryUnavailable ? (
+          <section className="category-preview-unavailable" aria-live="polite">
+            <span className="preview-placeholder-icon"><Layers3 size={23} /></span>
+            <h1>{activeCategory.name}</h1>
+            <p>
+              We don’t yet have category-matched frame-only and dressed preview
+              images for this bed type. Choose King, Queen, or Double to explore
+              the available sample bed designs.
+            </p>
+          </section>
+        ) : (
+          <>
         <section className="product-layout">
           <div className="product-visual-column">
             <div
@@ -473,7 +511,7 @@ export function ProductExperience({
             </p>
           </div>
         </section>
-        <section className="related-section">
+        {relatedModels.length > 0 && <section className="related-section">
           <div className="section-title">
             <h2>More Metallic Beds</h2>
             <Link href="/products/classic-spindle?category=king-beds">
@@ -481,9 +519,7 @@ export function ProductExperience({
             </Link>
           </div>
           <div className="related-row">
-            {products
-              .filter((item) => item.id !== product.id)
-              .map((item) => (
+            {relatedModels.map((item) => (
                 <button
                   type="button"
                   onClick={() =>
@@ -509,7 +545,7 @@ export function ProductExperience({
                 </button>
               ))}
           </div>
-        </section>
+        </section>}
         <section className="review-card">
           <div className="review-quote-mark">“</div>
           <div className="review-copy">
@@ -528,10 +564,12 @@ export function ProductExperience({
           Sample prices, ratings, finish previews and delivery information are
           illustrative.
         </div>
+          </>
+        )}
       </main>
       <footer className="site-footer">
         <Link href="/">Home Finds</Link>
-        <span>{product.care}</span>
+        <span>{categoryUnavailable ? "Sample category previews" : product.care}</span>
         <span>Sample product information</span>
       </footer>
       <MobileNav />

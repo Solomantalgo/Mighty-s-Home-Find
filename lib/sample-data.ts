@@ -35,10 +35,9 @@ export const bedMeasurements = [
 export type BedMeasurementId = (typeof bedMeasurements)[number]["id"];
 export const DEFAULT_BED_MEASUREMENT: BedMeasurementId = "5x6";
 export const bedMeasurementPrice = (id: BedMeasurementId) =>
-  bedMeasurements.find((item) => item.id === id)?.price ??
-  bedMeasurements[1].price;
+  bedMeasurements.find((item) => item.id === id)?.price ?? bedMeasurements[1].price;
 
-// Every displayed product detail below is illustrative prototype content.
+// All customer-facing product and commercial details in this file are sample content.
 export const sampleFinishes: Finish[] = [
   { id: "matte-black", name: "Matte Black", hex: "#242522" },
   { id: "white", name: "White", hex: "#e9e5dd" },
@@ -58,11 +57,7 @@ export const products: BedProduct[] = [
     reviews: 56,
     description: "A timeless vertical-rail silhouette with clean, airy lines.",
     frame: getCatalogVariantImage("classic-spindle", "matte-black", "frame"),
-    dressed: getCatalogVariantImage(
-      "classic-spindle",
-      "matte-black",
-      "dressed",
-    ),
+    dressed: getCatalogVariantImage("classic-spindle", "matte-black", "dressed"),
     image: getCatalogVariantImage("classic-spindle", "matte-black", "dressed"),
     configuratorDesign: "classic-spindle",
     colorName: "Matte Black",
@@ -99,11 +94,10 @@ export const products: BedProduct[] = [
     slug: "arched-rail",
     name: "Arched Rail Metallic Bed",
     shortName: "Arched Rail",
-    category: "Bunk Beds",
+    category: "Double Beds",
     rating: "4.8",
     reviews: 41,
-    description:
-      "Softly curved rails bring a graceful touch to this sample design.",
+    description: "Softly curved rails bring a graceful touch to this sample design.",
     frame: getCatalogVariantImage("arched-rail", "matte-black", "frame"),
     dressed: getCatalogVariantImage("arched-rail", "matte-black", "dressed"),
     image: getCatalogVariantImage("arched-rail", "matte-black", "dressed"),
@@ -116,6 +110,27 @@ export const products: BedProduct[] = [
     care: "Sample care information",
     alt: "Arched rail bed frame shown with sample bedding",
   },
+  {
+    id: "double-lowline",
+    slug: "double-lowline",
+    name: "Lowline Platform Double Bed",
+    shortName: "Lowline Platform",
+    category: "Double Beds",
+    rating: "4.8",
+    reviews: 24,
+    description: "A low, broad horizontal-rail frame with a distinct profile.",
+    frame: getCatalogVariantImage("double-lowline", "matte-black", "frame"),
+    dressed: getCatalogVariantImage("double-lowline", "matte-black", "dressed"),
+    image: getCatalogVariantImage("double-lowline", "matte-black", "dressed"),
+    configuratorDesign: "double-lowline",
+    colorName: "Matte Black",
+    finishes: sampleFinishes,
+    delivery: "2\u20134 days",
+    included: "Frame only. Mattress and bedding are shown for styling.",
+    material: "Metal frame \u00B7 sample details",
+    care: "Sample care information",
+    alt: "Lowline platform double bed with broad horizontal metal rails",
+  },
 ];
 
 export const categories = [
@@ -124,7 +139,7 @@ export const categories = [
     name: "King Beds",
     chipLabel: "King Beds",
     href: "/products/classic-spindle?category=king-beds",
-    modelIds: ["classic", "queen", "bunk"],
+    modelIds: ["classic"],
     defaultProductId: "classic",
     modelHeading: "King Bed Models",
     image: "/assets/category-media/king-beds.png",
@@ -136,7 +151,7 @@ export const categories = [
     name: "Queen Beds",
     chipLabel: "Queen Beds",
     href: "/products/square-grid?category=queen-beds",
-    modelIds: ["queen", "classic", "bunk"],
+    modelIds: ["queen"],
     defaultProductId: "queen",
     modelHeading: "Queen Bed Models",
     image: "/assets/category-media/queen-beds.png",
@@ -147,9 +162,9 @@ export const categories = [
     slug: "double-beds",
     name: "Double Beds",
     chipLabel: "Double Beds",
-    href: "/products/classic-spindle?category=double-beds",
-    modelIds: ["classic", "queen"],
-    defaultProductId: "classic",
+    href: "/products/double-lowline?category=double-beds",
+    modelIds: ["double-lowline", "bunk"],
+    defaultProductId: "double-lowline",
     modelHeading: "Double Bed Models",
     image: "/assets/category-media/double-beds-1.png",
     alternateImage: "/assets/category-media/double-beds-2.png",
@@ -159,20 +174,20 @@ export const categories = [
     slug: "triple-beds",
     name: "Triple Beds",
     chipLabel: "Triple Beds",
-    href: "/products/arched-rail?category=triple-beds",
-    modelIds: ["bunk", "queen"],
-    defaultProductId: "bunk",
+    href: "/products/classic-spindle?category=triple-beds",
+    modelIds: [],
+    defaultProductId: "classic",
     modelHeading: "Triple Bed Models",
     image: "/assets/category-media/triple-beds-1.png",
     alternateImage: "/assets/category-media/triple-beds-2.png",
-    alt: "Generated three-sleeper triple-bunk category concept; illustrative only",
+    alt: "Generated triple-bed concept image; illustrative only",
   },
   {
     slug: "kids-beds",
     name: "Kids\u2019 Beds",
     chipLabel: "Kids\u2019 Beds",
-    href: "/products/arched-rail?category=kids-beds",
-    modelIds: ["classic", "bunk"],
+    href: "/products/classic-spindle?category=kids-beds",
+    modelIds: [],
     defaultProductId: "classic",
     modelHeading: "Kids\u2019 Bed Models",
     image: "/assets/category-media/kids-beds.png",
@@ -183,15 +198,16 @@ export const categories = [
     slug: "bunk-beds",
     name: "Bunk Beds",
     chipLabel: "Bunk Beds",
-    href: "/products/arched-rail?category=bunk-beds",
-    modelIds: ["bunk", "queen", "classic"],
-    defaultProductId: "bunk",
+    href: "/products/classic-spindle?category=bunk-beds",
+    modelIds: [],
+    defaultProductId: "classic",
     modelHeading: "Bunk Bed Models",
     image: "/assets/category-media/bunk-beds.png",
     alternateImage: "/assets/category-media/bunk-beds-2.png",
     alt: "Generated two-level bunk bed category concept",
   },
 ] as const;
+
 export const benefits = [
   { icon: "truck", title: "Delivery", detail: "2\u20134 days" },
   { icon: "shield", title: "Strong & Durable", detail: "Metal frame" },
@@ -200,13 +216,10 @@ export const benefits = [
 ];
 
 export const sampleReview = {
-  quote:
-    "The bed is strong, stylish and very comfortable. Delivery was quick and smooth!",
+  quote: "The bed is strong, stylish and very comfortable. Delivery was quick and smooth!",
   author: "Sample customer",
   stars: 5,
 };
 
 export const formatUGX = (amount: number) =>
   `UGX ${amount.toLocaleString("en-UG")}`;
-
-

@@ -7,9 +7,9 @@ const homeUrl = "http://localhost:3000";
 const productUrl = `${homeUrl}/products/classic-spindle?category=king-beds`;
 const staticMobileNav = ".mobile-nav{position:relative!important;bottom:auto!important;left:auto!important;right:auto!important;width:100%!important}";
 const categories = [
-  { name: "King Beds", heading: "King Bed Models" },
-  { name: "Queen Beds", heading: "Queen Bed Models" },
-  { name: "Double Beds", heading: "Double Bed Models" },
+  { name: "King Beds", heading: "King Bed Models", models: ["Classic Spindle"] },
+  { name: "Queen Beds", heading: "Queen Bed Models", models: ["Square Grid"] },
+  { name: "Double Beds", heading: "Double Bed Models", models: ["Lowline Platform", "Arched Rail"] },
   { name: "Triple Beds", heading: "Triple Bed Models" },
   { name: "Kids’ Beds", heading: "Kids’ Bed Models" },
   { name: "Bunk Beds", heading: "Bunk Bed Models" },
@@ -18,6 +18,7 @@ const designIds = {
   "Classic Spindle": "classic-spindle",
   "Square Grid": "square-grid",
   "Arched Rail": "arched-rail",
+  "Lowline Platform": "double-lowline",
 };
 
 async function assertNoOverflow(width, url) {
@@ -70,11 +71,23 @@ for (let categoryIndex = 0; categoryIndex < categories.length; categoryIndex++) 
   if (actualHeading.trim().toLowerCase() !== categories[categoryIndex].heading.toLowerCase()) {
     throw new Error(`Incorrect model heading for ${categories[categoryIndex].name}: ${actualHeading}.`);
   }
+  if (!categories[categoryIndex].models) {
+    if (await page.locator(".design-picker-trigger").count()) {
+      throw new Error(`${categories[categoryIndex].name} incorrectly reuses another category's bed designs.`);
+    }
+    if (await page.locator(".product-layout").count()) {
+      throw new Error(`${categories[categoryIndex].name} incorrectly displays another category's bed preview.`);
+    }
+    continue;
+  }
   await page.getByRole("button", { name: /Choose your design/ }).click();
   const choices = page.locator(".design-option");
   const choiceCount = await choices.count();
-  if (!choiceCount) throw new Error(`No design options for ${categories[categoryIndex].name}.`);
+  if (choiceCount !== categories[categoryIndex].models.length) throw new Error(`${categories[categoryIndex].name} should show only its own matched designs.`);
   const names = await page.locator(".design-option-name").allTextContents();
+  if (categories[categoryIndex].models.some((expected) => !names.includes(expected))) {
+    throw new Error(`${categories[categoryIndex].name} showed unrelated bed designs: ${names.join(", ")}.`);
+  }
   for (const name of names) {
     await page.locator(".design-option").filter({ hasText: name }).click();
     if (new URL(page.url()).pathname !== originalPath) throw new Error("Design selection navigated away from the configurator.");
@@ -85,7 +98,8 @@ for (let categoryIndex = 0; categoryIndex < categories.length; categoryIndex++) 
     if (!designId) throw new Error(`Unexpected model card: ${name}`);
     const frameSrc = await page.locator(".frame-image").getAttribute("src");
     const dressedSrc = await page.locator(".dressed-image").getAttribute("src");
-    if (!frameSrc?.includes(`${designId}-`) || !frameSrc.endsWith("-frame.webp") || !dressedSrc?.includes(`${designId}-`) || !dressedSrc.endsWith("-dressed.webp")) {
+    const extension = designId === "double-lowline" ? ".png" : ".webp";
+    if (!frameSrc?.includes(`${designId}-`) || !frameSrc.endsWith(`-frame${extension}`) || !dressedSrc?.includes(`${designId}-`) || !dressedSrc.endsWith(`-dressed${extension}`)) {
       throw new Error(`Frame/dressed previews did not update for ${name}.`);
     }
     await page.getByRole("button", { name: /Choose your design/ }).click();
@@ -97,7 +111,13 @@ for (let categoryIndex = 0; categoryIndex < categories.length; categoryIndex++) 
   if (!(await page.locator(".dressed-image").isVisible())) throw new Error("Fully Dressed preview is missing.");
 }
 
+await page.screenshot({ path: "qa/category-bunk-unavailable-mobile.png", fullPage: true });
+await page.setViewportSize({ width: 1440, height: 1000 });
+await page.getByRole("button", { name: "Double Beds", exact: true }).click();
+await page.screenshot({ path: "qa/category-double-desktop.png", fullPage: true });
+
 // Verify repeat additions, stable line snapshots, drawer confirmation and checkout parity.
+await page.setViewportSize({ width: 390, height: 844 });
 await page.getByRole("button", { name: "King Beds", exact: true }).click();
 await page.getByRole("button", { name: /Choose your design/ }).click();
 await page.locator(".design-option").filter({ hasText: "Classic Spindle" }).click();
@@ -106,6 +126,7 @@ await page.locator(".size-choice button").first().click();
 const addButton = page.getByRole("button", { name: /Add to Bag/ });
 if (await addButton.isDisabled()) throw new Error("Add to Bag is disabled before a real pending operation.");
 await addButton.click();
+await page.waitForSelector(".cart-added-confirmation", { state: "visible", timeout: 5000 });
 if (!(await page.getByRole("status").filter({ hasText: "Classic Spindle added to your bag" }).isVisible())) {
   throw new Error("Add to Bag did not show a clear confirmation.");
 }
@@ -118,6 +139,7 @@ if (await page.locator(".cart-drawer-item").count() !== 1 || await page.locator(
   throw new Error("Same configuration did not increment only its cart line.");
 }
 await page.getByRole("button", { name: "Close cart" }).click();
+await page.getByRole("button", { name: "Queen Beds", exact: true }).click();
 await page.getByRole("button", { name: /Choose your design/ }).click();
 await page.locator(".design-option").filter({ hasText: "Square Grid" }).click();
 await page.getByRole("button", { name: "White", exact: true }).click();

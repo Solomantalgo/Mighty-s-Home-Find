@@ -26,3 +26,7 @@ Use the separate image files for the Frame Only/Fully Dressed toggle or comparis
 These are generated visual samples for prototype structure. Verify each design/finish against actual inventory before presenting it as a purchasable Home Finds product.
 
 For the planned staff workflow to add more designs, see `plan/HOMEFINDS-PLAN.md` under “Adding more bed designs.”
+
+## Additional Double bed concept
+
+The Double category includes a visibly distinct `double-lowline` design with three broad horizontal headboard rails. Its separate frame-only and dressed PNG pairs for all five finishes are in `public/assets/bed-catalog-variants/`. This generated sample is concept imagery, not a verified Home Finds product.
