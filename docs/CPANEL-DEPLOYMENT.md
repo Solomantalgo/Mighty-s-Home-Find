@@ -1,6 +1,6 @@
 # cPanel deployment
 
-GitHub Actions builds Home Finds on every push to `main` with Node.js `22.23.5` and `next build --webpack`. It then uploads a compressed production package through cPanel's authenticated HTTPS API on port `2083`, extracts it into the `homefinds` Node.js app root, removes the temporary archive, and uploads `tmp/restart.txt` last to restart Passenger. This avoids the FTP passive data-port timeout seen with this hosting account. No build runs on the cPanel server.
+GitHub Actions builds Home Finds on every push to `main` with Node.js `22.23.5` and `next build --webpack`. It publishes the production runtime to the `cpanel-deploy` branch. A cPanel cron job checks that branch over outbound HTTPS once per minute, checks out new builds in the existing `homefinds` app root, and updates `tmp/restart.txt` only when the build changes. This pull-based flow avoids the hosting account's blocked FTP passive data port and browser verification on cPanel API requests. GitHub Actions does not connect to cPanel directly.
 
 ## cPanel Node.js application
 
@@ -13,27 +13,27 @@ Configure **Setup Node.js App** for the main domain:
 - Startup file: `passenger.cjs`
 - Passenger must provide the assigned `PORT`.
 
-The cPanel account home directory shown in this account is `/home2/mightyhomefinds`; the app directory is `/home2/mightyhomefinds/homefinds`.
+The cPanel home directory shown for this account is `/home2/mightyhomefinds`; the app and cloned Git repository are `/home2/mightyhomefinds/homefinds`.
 
-## GitHub Actions secret
+## One-time cPanel cron setup
 
-In the repository's **Settings > Secrets and variables > Actions**, configure:
+Wait until GitHub Actions has created the `cpanel-deploy` branch. In cPanel, open **Cron Jobs** and add this command to run **once per minute**:
 
-- `CPANEL_API_TOKEN`: a cPanel API token created under **Security > Manage API Tokens**.
+```sh
+/bin/bash -c 'APP=/home2/mightyhomefinds/homefinds; GIT=/usr/bin/git; cd "$APP" || exit 1; "$GIT" fetch --quiet origin cpanel-deploy || exit 1; target=$("$GIT" rev-parse FETCH_HEAD) || exit 1; current=$("$GIT" rev-parse HEAD) || exit 1; if [ "$target" != "$current" ]; then "$GIT" checkout --force --detach "$target" || exit 1; printf "%s\n" "$target" > "$APP/tmp/restart.txt"; fi'
+```
 
-The workflow uses cPanel account username `mightyhomefinds` and the server hostname `cloud207.cloudwebhosting.com`. Keep the token in GitHub Secrets only; never commit it or paste it into chat. The token authorizes cPanel API calls as the account, so revoke it in cPanel if it is no longer needed.
+The command uses the existing public GitHub clone, fetches only the `cpanel-deploy` branch, and leaves the Node.js app's untracked `node_modules` and environment files in place. It restarts Passenger only after a new runtime commit arrives. The expected update delay is up to one minute.
 
-The previous `CPANEL_FTP_*` secrets are not used by this workflow. They can be removed after the HTTPS API deployment succeeds.
+## GitHub Actions behavior
 
-## Build and deployment behavior
+The workflow needs `contents: write` permission to publish the built runtime branch. It packages the app source, `public/` media, runtime package files, Passenger entry point, and `.next` build. It does not publish `.git`, `node_modules`, `.env` files, planning assets, or QA screenshots. The `cpanel-deploy` branch is generated output; do not edit it by hand.
 
-For each push to `main`, GitHub Actions runs `npm ci`, then `npx next build --webpack`. It stages the app source, runtime package files, public assets, Passenger entry point, and production `.next` output. It excludes `.git`, server `node_modules`, environment files, planning assets, and QA screenshots. The workflow preserves server dependencies and environment files. The cPanel API extracts the package, deletes the temporary archive, then updates `tmp/restart.txt` to restart Passenger.
-
-The workflow uses cPanel UAPI `Fileman::upload_files` for HTTPS uploads. It uses cPanel API 2 `Fileman::fileop` only for archive extraction because cPanel does not provide an equivalent UAPI extraction function. Both requests use the cPanel API token over HTTPS with certificate verification enabled.
+The old `CPANEL_FTP_*` and `CPANEL_API_TOKEN` GitHub secrets are no longer used. After confirming the cron deployment works, remove those secrets and revoke the cPanel API token.
 
 ## Dependency changes
 
-The deployment preserves server `node_modules`. If `package.json` or `package-lock.json` changes, use the cPanel Node.js App's **Run NPM Install** action with Node.js `22.23.5` after deployment, then restart the app. The production Next.js build still runs in GitHub Actions.
+The deployment preserves server `node_modules`. If `package.json` or `package-lock.json` changes, use the cPanel Node.js App's **Run NPM Install** action with Node.js `22.23.5` after the cron has pulled the build, then restart the app. The production Next.js build continues to run in GitHub Actions.
 
 ## Current product limitations
 
