@@ -1,56 +1,41 @@
-# cPanel deployment preparation
+# cPanel deployment
 
-This app is prepared for cPanel's **Setup Node.js App / Passenger** using Node.js **22.23.5**. No deployment to the live domain has been performed.
+The GitHub Actions workflow builds Home Finds on each push to `main` using Node.js `22.23.5` and `next build --webpack`, then deploys the application and `.next` output to cPanel over **explicit FTPS**. The FTP account is restricted to the Home Finds app root, so the remote destination is `./`. After the app files are uploaded, the workflow updates `tmp/restart.txt` last to trigger Passenger. No SSH commands or cPanel-side build are used.
 
-## cPanel application settings
+## cPanel Node.js App
 
-Create a Node.js application for the main domain `mightyhomefinds.com` and bind it to the domain root. Use the repository/project root as the **Application root**: the directory containing `package.json`, `app/`, `public/`, and `passenger.cjs`. The actual absolute hosting path has not been supplied, so choose and record it in cPanel rather than copying a guessed path from this guide.
+Configure **Setup Node.js App** for the root of `mightyhomefinds.com`:
 
-Set these application values:
+- Node.js version: `22.23.5`
+- Mode: `Production`
+- Application URL: `mightyhomefinds.com` at `/`
+- Application root: the directory containing `package.json`, `app/`, `public/`, and `passenger.cjs`
+- Startup file: `passenger.cjs` (do not use `app.js`; `prototype/app.js` belongs to the preserved old prototype)
+- Passenger must provide its assigned `PORT`
 
-- **Node.js version:** `22.23.5`
-- **Application mode:** `Production`
-- **Application URL:** `mightyhomefinds.com` at `/`
-- **Application startup file:** `passenger.cjs` (not `app.js`; `prototype/app.js` is the preserved old HTML prototype)
-- **Environment:** ensure Passenger provides its assigned `PORT`; do not hard-code a port
+The FTP account must be restricted to this application root. The workflow uploads to `./` within that account and does not need or assume an absolute hosting path. `passenger.cjs` runs the production Next.js server (`dev: false`) and listens on Passenger's assigned port; it requires the uploaded `.next` build.
 
-`passenger.cjs` starts Next.js with `dev: false`, waits for the production build, then listens on Passenger's `PORT`. It fails fast when `PORT` is missing or invalid. The regular `npm start` remains available for standard Node hosting; cPanel must use the dedicated startup filename above.
+## GitHub Actions secrets
 
-## Install, build, and restart
+The workflow is [`.github/workflows/deploy-cpanel.yml`](../.github/workflows/deploy-cpanel.yml). In the repository's **Settings → Secrets and variables → Actions → Secrets**, configure:
 
-Run these commands from the application root in cPanel's terminal/SSH session, using the Node 22.23.5 environment selected for the app:
+- `CPANEL_FTP_SERVER` = `ftp.mightyhomefinds.com`
+- `CPANEL_FTP_PORT` = `21`
+- `CPANEL_FTP_USERNAME` = the cPanel FTP account username
+- `CPANEL_FTP_PASSWORD` = the cPanel FTP account password
 
-```sh
-npm ci
-npm run build
-```
+The workflow checks that all four secrets are present and that the server and port match the supplied destination before connecting. It uses `protocol: ftps` (explicit FTPS) and certificate validation. No credentials belong in source control. When these secrets are unset, the build can run, but the job stops before opening an FTPS connection.
 
-Then start or restart the application from **Setup Node.js App**. Passenger must start `passenger.cjs` after the build has completed. After each deployed source update, install if the lockfile changed, run `npm run build`, then restart the Node.js application in cPanel. Keep the built `.next/` directory on the server; do not deploy this app as static files only.
+## Build and upload behavior
 
-For a local production smoke check, build first and run:
+For each `main` push, GitHub Actions runs `npm ci`, then `npx next build --webpack` on the runner. It stages the app source, runtime package files, public assets, Passenger entry point, and production `.next` output. It excludes `.git`, `node_modules`, `.env` files, planning assets, and QA screenshots. It does not use the destructive clean-slate option, so server dependencies and environment files remain in place. The restart marker contains a unique workflow run value so each deployment updates it.
 
-```sh
-npm run start:passenger
-```
+The workflow must not be run against production until the four repository secrets are configured and the FTP account is confirmed to be restricted to the Home Finds application root. The first live deployment should have an agreed backup and rollback plan.
 
-This command also requires `PORT` to be set, matching Passenger behavior. `npm start` runs Next's standard production server and is not the cPanel startup-file setting.
+## Dependency changes
 
-## GitHub `main` to cPanel
+The deployment intentionally preserves server `node_modules`. If `package.json` or `package-lock.json` changes, the upload does not install those dependencies. After deploying such a change, use the cPanel Node.js App's **Run NPM Install** action with Node.js `22.23.5`, then restart the app. This installs dependencies only; the production Next.js build still runs in GitHub Actions. If that cPanel control is unavailable, confirm the provider's supported dependency-install method before merging dependency changes.
 
-The intended flow is a push to the approved GitHub `main` branch followed by an automated deployment to the cPanel application root. A push to GitHub alone does not make cPanel pull or rebuild the repository. The recommended bridge is a GitHub Actions workflow that connects to the cPanel account over SSH, updates the cPanel-managed checkout (or performs the provider-approved checkout), runs `npm ci` and `npm run build` in the application root, and invokes the cPanel-supported Passenger restart. Confirm the provider's supported restart command/mechanism before enabling that workflow. cPanel Git Version Control may be used for the checkout, but it needs an explicit GitHub-to-cPanel trigger to make GitHub pushes automatic.
+## Prototype limitations
 
-No workflow or credentials are included yet because the host and repository connection details are unknown. To configure automation without committing credentials, provide/configure:
-
-1. The canonical GitHub repository URL and confirmation that `main` is the production branch.
-2. The cPanel SSH hostname, SSH port, and deployment username.
-3. The exact absolute cPanel application/repository root and confirmation that the deploy user can update it.
-4. Whether that path is a cPanel Git Version Control checkout or a direct checkout, and the provider-approved update command.
-5. The cPanel-supported build/restart commands and whether GitHub Actions may run `npm ci` and `npm run build` on the host.
-6. The approved SSH key arrangement: which public key to authorize in cPanel and which private key to store in GitHub Actions secrets. Store the private key only as a GitHub Actions secret; never put it in this repository.
-7. Confirmation that outbound SSH from GitHub-hosted Actions to the cPanel host is allowed, or the provider's required alternative deployment mechanism.
-
-Once those values are provided, add the repository workflow using the confirmed connection and secret names. Do not put passwords, private keys, tokens, or `.env` values in source control. Do not deploy to the live domain until the production application root, root-domain mapping, backup/rollback plan, and restart path are confirmed.
-
-## Current limitations
-
-This is a client-side storefront prototype. Deployment does not add a database, live inventory, authentication, payment processing, or an operational order service. The manual MoMo prototype must not be represented as automatic payment verification. The Home Finds receiving number and payment support contact also remain to be configured separately before accepting real payments.
+The site remains a client-side storefront prototype. This deployment does not add a database, live inventory, authentication, payment processing, or an operational order service. The manual MoMo prototype must not be represented as automatic payment verification. Configure the Home Finds receiving number and payment support contact before accepting real payments.
