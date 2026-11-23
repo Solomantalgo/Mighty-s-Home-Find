@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: Build and deploy over explicit FTPS
+    name: Build and deploy through cPanel HTTPS API
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -39,82 +39,22 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf deploy
-          mkdir -p deploy
+          mkdir -p deploy/tmp
           cp -a app components lib public .next deploy/
           cp package.json package-lock.json next.config.ts passenger.cjs deploy/
           rm -rf deploy/.next/cache
+          : > deploy/tmp/.keep
 
-      - name: Confirm FTPS settings are configured
-        shell: bash
+      - name: Package production runtime
+        run: tar -czf homefinds-deploy.tar.gz -C deploy .
+
+      - name: Deploy through cPanel HTTPS API
         env:
-          FTPS_HOST: ${{ secrets.CPANEL_FTP_SERVER }}
-          FTPS_PORT: ${{ secrets.CPANEL_FTP_PORT }}
-          FTPS_USERNAME: ${{ secrets.CPANEL_FTP_USERNAME }}
-          FTPS_PASSWORD: ${{ secrets.CPANEL_FTP_PASSWORD }}
+          CPANEL_API_TOKEN: ${{ secrets.CPANEL_API_TOKEN }}
+          CPANEL_USERNAME: mightyhomefinds
+          CPANEL_HOST: cloud207.cloudwebhosting.com
+          CPANEL_APP_ROOT: homefinds
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
         run: |
-          set -euo pipefail
-          missing=()
-          [[ -n "$FTPS_HOST" ]] || missing+=(CPANEL_FTP_SERVER)
-          [[ -n "$FTPS_PORT" ]] || missing+=(CPANEL_FTP_PORT)
-          [[ -n "$FTPS_USERNAME" ]] || missing+=(CPANEL_FTP_USERNAME)
-          [[ -n "$FTPS_PASSWORD" ]] || missing+=(CPANEL_FTP_PASSWORD)
-          if (( ${#missing[@]} )); then
-            printf 'Deployment stopped before FTPS because configuration is missing: %s\n' "${missing[*]}"
-            exit 1
-          fi
-          if [[ "$FTPS_HOST" != "cloud207.cloudwebhosting.com" || "$FTPS_PORT" != "21" ]]; then
-            echo "Configure the FTPS server as cloud207.cloudwebhosting.com on port 21."
-            exit 1
-          fi
-
-      - name: Upload application and build over explicit FTPS
-        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
-        with:
-          server: ${{ secrets.CPANEL_FTP_SERVER }}
-          port: ${{ secrets.CPANEL_FTP_PORT }}
-          username: ${{ secrets.CPANEL_FTP_USERNAME }}
-          password: ${{ secrets.CPANEL_FTP_PASSWORD }}
-          protocol: ftps
-          security: strict
-          local-dir: ./deploy/
-          server-dir: ./
-          dangerous-clean-slate: false
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            **/.env
-            **/.env.*
-            **/plan/**
-            **/qa/**
-            **/prototype/**
-            **/tmp/restart.txt
-
-      - name: Stage Passenger restart marker
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p deploy/tmp
-          printf '%s\n' "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" > deploy/tmp/restart.txt
-
-      - name: Upload restart marker last
-        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
-        with:
-          server: ${{ secrets.CPANEL_FTP_SERVER }}
-          port: ${{ secrets.CPANEL_FTP_PORT }}
-          username: ${{ secrets.CPANEL_FTP_USERNAME }}
-          password: ${{ secrets.CPANEL_FTP_PASSWORD }}
-          protocol: ftps
-          security: strict
-          local-dir: ./deploy/
-          server-dir: ./
-          dangerous-clean-slate: false
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            **/.env
-            **/.env.*
-            **/plan/**
-            **/qa/**
-            **/prototype/**
+          node scripts/deploy-cpanel-api.mjs homefinds-deploy.tar.gz

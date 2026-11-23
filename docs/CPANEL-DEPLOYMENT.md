@@ -1,41 +1,40 @@
 # cPanel deployment
 
-The GitHub Actions workflow builds Home Finds on each push to `main` using Node.js `22.23.5` and `next build --webpack`, then deploys the application and `.next` output to cPanel over **explicit FTPS**. The FTP account is restricted to the Home Finds app root, so the remote destination is `./`. After the app files are uploaded, the workflow updates `tmp/restart.txt` last to trigger Passenger. No SSH commands or cPanel-side build are used.
+GitHub Actions builds Home Finds on every push to `main` with Node.js `22.23.5` and `next build --webpack`. It then uploads a compressed production package through cPanel's authenticated HTTPS API on port `2083`, extracts it into the `homefinds` Node.js app root, removes the temporary archive, and uploads `tmp/restart.txt` last to restart Passenger. This avoids the FTP passive data-port timeout seen with this hosting account. No build runs on the cPanel server.
 
-## cPanel Node.js App
+## cPanel Node.js application
 
-Configure **Setup Node.js App** for the root of `mightyhomefinds.com`:
+Configure **Setup Node.js App** for the main domain:
 
 - Node.js version: `22.23.5`
 - Mode: `Production`
 - Application URL: `mightyhomefinds.com` at `/`
-- Application root: the directory containing `package.json`, `app/`, `public/`, and `passenger.cjs`
-- Startup file: `passenger.cjs` (do not use `app.js`; `prototype/app.js` belongs to the preserved old prototype)
-- Passenger must provide its assigned `PORT`
+- Application root: `homefinds` (the directory containing `package.json`, `app/`, `public/`, and `passenger.cjs`)
+- Startup file: `passenger.cjs`
+- Passenger must provide the assigned `PORT`.
 
-The FTP account must be restricted to this application root. The workflow uploads to `./` within that account and does not need or assume an absolute hosting path. `passenger.cjs` runs the production Next.js server (`dev: false`) and listens on Passenger's assigned port; it requires the uploaded `.next` build.
+The cPanel account home directory shown in this account is `/home2/mightyhomefinds`; the app directory is `/home2/mightyhomefinds/homefinds`.
 
-## GitHub Actions secrets
+## GitHub Actions secret
 
-The workflow is [`.github/workflows/deploy-cpanel.yml`](../.github/workflows/deploy-cpanel.yml). In the repository's **Settings → Secrets and variables → Actions → Secrets**, configure:
+In the repository's **Settings > Secrets and variables > Actions**, configure:
 
-- `CPANEL_FTP_SERVER` = `cloud207.cloudwebhosting.com` (use the hostname on the FTPS certificate)
-- `CPANEL_FTP_PORT` = `21`
-- `CPANEL_FTP_USERNAME` = the cPanel FTP account username
-- `CPANEL_FTP_PASSWORD` = the cPanel FTP account password
+- `CPANEL_API_TOKEN`: a cPanel API token created under **Security > Manage API Tokens**.
 
-The workflow checks that all four secrets are present and that the server and port match the supplied destination before connecting. It uses `protocol: ftps` (explicit FTPS) and certificate validation. No credentials belong in source control. When these secrets are unset, the build can run, but the job stops before opening an FTPS connection.
+The workflow uses cPanel account username `mightyhomefinds` and the server hostname `cloud207.cloudwebhosting.com`. Keep the token in GitHub Secrets only; never commit it or paste it into chat. The token authorizes cPanel API calls as the account, so revoke it in cPanel if it is no longer needed.
 
-## Build and upload behavior
+The previous `CPANEL_FTP_*` secrets are not used by this workflow. They can be removed after the HTTPS API deployment succeeds.
 
-For each `main` push, GitHub Actions runs `npm ci`, then `npx next build --webpack` on the runner. It stages the app source, runtime package files, public assets, Passenger entry point, and production `.next` output. It excludes `.git`, `node_modules`, `.env` files, planning assets, and QA screenshots. It does not use the destructive clean-slate option, so server dependencies and environment files remain in place. The restart marker contains a unique workflow run value so each deployment updates it.
+## Build and deployment behavior
 
-The workflow must not be run against production until the four repository secrets are configured and the FTP account is confirmed to be restricted to the Home Finds application root. The first live deployment should have an agreed backup and rollback plan.
+For each push to `main`, GitHub Actions runs `npm ci`, then `npx next build --webpack`. It stages the app source, runtime package files, public assets, Passenger entry point, and production `.next` output. It excludes `.git`, server `node_modules`, environment files, planning assets, and QA screenshots. The workflow preserves server dependencies and environment files. The cPanel API extracts the package, deletes the temporary archive, then updates `tmp/restart.txt` to restart Passenger.
+
+The workflow uses cPanel UAPI `Fileman::upload_files` for HTTPS uploads. It uses cPanel API 2 `Fileman::fileop` only for archive extraction because cPanel does not provide an equivalent UAPI extraction function. Both requests use the cPanel API token over HTTPS with certificate verification enabled.
 
 ## Dependency changes
 
-The deployment intentionally preserves server `node_modules`. If `package.json` or `package-lock.json` changes, the upload does not install those dependencies. After deploying such a change, use the cPanel Node.js App's **Run NPM Install** action with Node.js `22.23.5`, then restart the app. This installs dependencies only; the production Next.js build still runs in GitHub Actions. If that cPanel control is unavailable, confirm the provider's supported dependency-install method before merging dependency changes.
+The deployment preserves server `node_modules`. If `package.json` or `package-lock.json` changes, use the cPanel Node.js App's **Run NPM Install** action with Node.js `22.23.5` after deployment, then restart the app. The production Next.js build still runs in GitHub Actions.
 
-## Prototype limitations
+## Current product limitations
 
-The site remains a client-side storefront prototype. This deployment does not add a database, live inventory, authentication, payment processing, or an operational order service. The manual MoMo prototype must not be represented as automatic payment verification. Configure the Home Finds receiving number and payment support contact before accepting real payments.
+The site remains a storefront prototype. Deployment does not add a database, live inventory, authentication, payment processing, or an operational order service. The manual MoMo flow must not be represented as automatic payment verification. Confirm the receiving number and support contact before taking real payments.
