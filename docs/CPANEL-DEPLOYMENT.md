@@ -24,6 +24,7 @@ The cPanel home directory is `/home2/mightyhomefinds`; the app and cloned Git re
    - `CPANEL_SSH_PORT`: `37980` (previously confirmed as the working SSH port for this server).
    - `CPANEL_SSH_USER`: `mightyhomefinds` (the username shown by this account's cPanel Terminal prompt).
    - `CPANEL_SSH_PRIVATE_KEY`: the private key corresponding to the authorized public key. Include the full key text, including its begin/end lines.
+   - `CPANEL_SSH_KEY_PASSPHRASE`: the passphrase used when this private key was generated. The workflow decrypts its temporary runner copy for the SSH connection; it does not change the cPanel key.
    - `CPANEL_SSH_KNOWN_HOSTS`: the verified SSH host-key line for this host and port. Obtain it with `ssh-keyscan -p <port> <host>` and verify its fingerprint with the hosting provider before saving it. For a non-default port, the known-hosts entry must use the `[host]:port` format returned by `ssh-keyscan`.
 
    Do not paste private keys or secret values into chat, commits, or project files.

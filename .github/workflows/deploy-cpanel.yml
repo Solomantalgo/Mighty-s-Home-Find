@@ -69,14 +69,17 @@ jobs:
         shell: bash
         env:
           SSH_PRIVATE_KEY: ${{ secrets.CPANEL_SSH_PRIVATE_KEY }}
+          SSH_KEY_PASSPHRASE: ${{ secrets.CPANEL_SSH_KEY_PASSPHRASE }}
           SSH_KNOWN_HOSTS: ${{ secrets.CPANEL_SSH_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
           test -n "$SSH_PRIVATE_KEY" || { echo "Missing CPANEL_SSH_PRIVATE_KEY secret"; exit 1; }
+          test -n "$SSH_KEY_PASSPHRASE" || { echo "Missing CPANEL_SSH_KEY_PASSPHRASE secret"; exit 1; }
           test -n "$SSH_KNOWN_HOSTS" || { echo "Missing CPANEL_SSH_KNOWN_HOSTS secret"; exit 1; }
           install -m 700 -d "$HOME/.ssh"
           printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/homefinds_deploy"
           chmod 600 "$HOME/.ssh/homefinds_deploy"
+          ssh-keygen -p -P "$SSH_KEY_PASSPHRASE" -N "" -f "$HOME/.ssh/homefinds_deploy"
           ssh-keygen -y -f "$HOME/.ssh/homefinds_deploy" > "$HOME/.ssh/homefinds_deploy.pub"
           ssh-keygen -lf "$HOME/.ssh/homefinds_deploy.pub"
           printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
