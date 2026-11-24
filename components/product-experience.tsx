@@ -158,9 +158,9 @@ export function ProductExperience({
           aria-label="Browse bed types and models"
         >
           <div className="selector-intro">
-            <span>FIND YOUR FIT</span>
-            <strong>Browse bed types</strong>
-            <small>Choose a category, then explore its frames.</small>
+            <span>BED FINDER</span>
+            <strong>Find your bed</strong>
+            <small>Choose a category, then pick a design.</small>
           </div>
           <div className="bed-selector-group">
             <strong>Bed category</strong>
