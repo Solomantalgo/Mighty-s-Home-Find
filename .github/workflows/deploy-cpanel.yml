@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: Build and publish runtime for cPanel pull
+    name: Build, publish, and deploy over SSH
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -45,10 +45,8 @@ jobs:
           rm -rf deploy/.next/cache
           : > deploy/tmp/.keep
 
-      - name: Package production runtime
-        run: tar -czf homefinds-deploy.tar.gz -C deploy .
-
-      - name: Publish runtime branch for cPanel to pull
+      - name: Publish runtime branch for cPanel
+        shell: bash
         run: |
           set -euo pipefail
           auth_header="$(git config --local --get http.https://github.com/.extraheader)"
@@ -66,3 +64,51 @@ jobs:
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           git config http.https://github.com/.extraheader "$auth_header"
           git push --force origin HEAD:refs/heads/cpanel-deploy
+
+      - name: Configure SSH
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.CPANEL_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.CPANEL_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$SSH_PRIVATE_KEY" || { echo "Missing CPANEL_SSH_PRIVATE_KEY secret"; exit 1; }
+          test -n "$SSH_KNOWN_HOSTS" || { echo "Missing CPANEL_SSH_KNOWN_HOSTS secret"; exit 1; }
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/homefinds_deploy"
+          chmod 600 "$HOME/.ssh/homefinds_deploy"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+
+      - name: Pull deployment and restart Passenger
+        shell: bash
+        env:
+          CPANEL_SSH_HOST: ${{ secrets.CPANEL_SSH_HOST }}
+          CPANEL_SSH_PORT: ${{ secrets.CPANEL_SSH_PORT }}
+          CPANEL_SSH_USER: ${{ secrets.CPANEL_SSH_USER }}
+        run: |
+          set -euo pipefail
+          test -n "$CPANEL_SSH_HOST" || { echo "Missing CPANEL_SSH_HOST secret"; exit 1; }
+          test -n "$CPANEL_SSH_PORT" || { echo "Missing CPANEL_SSH_PORT secret"; exit 1; }
+          test -n "$CPANEL_SSH_USER" || { echo "Missing CPANEL_SSH_USER secret"; exit 1; }
+          ssh \
+            -i "$HOME/.ssh/homefinds_deploy" \
+            -p "$CPANEL_SSH_PORT" \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            "$CPANEL_SSH_USER@$CPANEL_SSH_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          APP=/home2/mightyhomefinds/homefinds
+          cd "$APP"
+          git fetch --quiet origin cpanel-deploy
+          target="$(git rev-parse FETCH_HEAD)"
+          current="$(git rev-parse HEAD)"
+          if [ "$target" != "$current" ]; then
+            git checkout --force --detach "$target"
+            printf '%s\n' "$target" > "$APP/tmp/restart.txt"
+            echo "Deployed $target and requested Passenger restart."
+          else
+            echo "cPanel is already running $target."
+          fi
+          REMOTE

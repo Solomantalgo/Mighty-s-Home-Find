@@ -1,6 +1,6 @@
 # cPanel deployment
 
-GitHub Actions builds Home Finds on every push to `main` with Node.js `22.23.5` and `next build --webpack`. It publishes the production runtime to the `cpanel-deploy` branch. A cPanel cron job checks that branch over outbound HTTPS once per minute, checks out new builds in the existing `homefinds` app root, and updates `tmp/restart.txt` only when the build changes. This pull-based flow avoids the hosting account's blocked FTP passive data port and browser verification on cPanel API requests. GitHub Actions does not connect to cPanel directly.
+GitHub Actions builds Home Finds on every push to `main` with Node.js `22.23.5` and `next build --webpack`. It publishes the production runtime to the generated `cpanel-deploy` branch, then connects to cPanel over SSH and tells the existing clone to fetch that runtime. cPanel does not run the Next.js build. The deployment updates `tmp/restart.txt` after a new build is checked out so Passenger restarts the app.
 
 ## cPanel Node.js application
 
@@ -13,27 +13,28 @@ Configure **Setup Node.js App** for the main domain:
 - Startup file: `passenger.cjs`
 - Passenger must provide the assigned `PORT`.
 
-The cPanel home directory shown for this account is `/home2/mightyhomefinds`; the app and cloned Git repository are `/home2/mightyhomefinds/homefinds`.
+The cPanel home directory is `/home2/mightyhomefinds`; the app and cloned Git repository are `/home2/mightyhomefinds/homefinds`.
 
-## One-time cPanel cron setup
+## Enable GitHub Actions SSH deployment
 
-Wait until GitHub Actions has created the `cpanel-deploy` branch. In cPanel, open **Cron Jobs** and add this command to run **once per minute**:
+1. In cPanel, open **SSH Access → Manage SSH Keys**. Generate a dedicated deployment key pair there, or import the public key generated for this workflow. Authorize the public key. Keep the private key private; it belongs only in a GitHub Actions secret.
+2. In the GitHub repository, open **Settings → Secrets and variables → Actions → New repository secret** and add:
 
-```sh
-/bin/bash -c 'APP=/home2/mightyhomefinds/homefinds; GIT=/usr/bin/git; cd "$APP" || exit 1; "$GIT" fetch --quiet origin cpanel-deploy || exit 1; target=$("$GIT" rev-parse FETCH_HEAD) || exit 1; current=$("$GIT" rev-parse HEAD) || exit 1; if [ "$target" != "$current" ]; then "$GIT" checkout --force --detach "$target" || exit 1; printf "%s\n" "$target" > "$APP/tmp/restart.txt"; fi'
-```
+   - `CPANEL_SSH_HOST`: `cloud207.cloudwebhosting.com` (confirmed with `hostname -f` in cPanel Terminal).
+   - `CPANEL_SSH_PORT`: `37980` (previously confirmed as the working SSH port for this server).
+   - `CPANEL_SSH_USER`: `mightyhomefinds` (the username shown by this account's cPanel Terminal prompt).
+   - `CPANEL_SSH_PRIVATE_KEY`: the private key corresponding to the authorized public key. Include the full key text, including its begin/end lines.
+   - `CPANEL_SSH_KNOWN_HOSTS`: the verified SSH host-key line for this host and port. Obtain it with `ssh-keyscan -p <port> <host>` and verify its fingerprint with the hosting provider before saving it. For a non-default port, the known-hosts entry must use the `[host]:port` format returned by `ssh-keyscan`.
 
-The command uses the existing public GitHub clone, fetches only the `cpanel-deploy` branch, and leaves the Node.js app's untracked `node_modules` and environment files in place. It restarts Passenger only after a new runtime commit arrives. The expected update delay is up to one minute.
+   Do not paste private keys or secret values into chat, commits, or project files.
+3. Remove or disable the temporary cPanel cron job used for deployment once the SSH workflow succeeds. Do not leave two deployment mechanisms active.
+4. Push a commit to `main`, or run **Actions → Build and deploy Home Finds to cPanel → Run workflow**. The workflow should show build, runtime-branch publish, SSH pull, and Passenger restart steps.
 
-## GitHub Actions behavior
-
-The workflow needs `contents: write` permission to publish the built runtime branch. It packages the app source, `public/` media, runtime package files, Passenger entry point, and `.next` build. It does not publish `.git`, `node_modules`, `.env` files, planning assets, or QA screenshots. The `cpanel-deploy` branch is generated output; do not edit it by hand.
-
-The old `CPANEL_FTP_*` and `CPANEL_API_TOKEN` GitHub secrets are no longer used. After confirming the cron deployment works, remove those secrets and revoke the cPanel API token.
+The SSH deployment uses the cPanel clone's existing public GitHub remote and checks out the generated `cpanel-deploy` runtime. It preserves untracked server files such as `node_modules` and environment files. The private key and host key are supplied as GitHub secrets; host checking is strict.
 
 ## Dependency changes
 
-The deployment preserves server `node_modules`. If `package.json` or `package-lock.json` changes, use the cPanel Node.js App's **Run NPM Install** action with Node.js `22.23.5` after the cron has pulled the build, then restart the app. The production Next.js build continues to run in GitHub Actions.
+The deployment preserves server `node_modules`. If `package.json` or `package-lock.json` changes, use the cPanel Node.js App's **Run NPM Install** action with Node.js `22.23.5` after deployment, then restart the app. The production Next.js build runs in GitHub Actions to avoid cPanel build-memory limits.
 
 ## Current product limitations
 
