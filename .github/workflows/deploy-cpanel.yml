@@ -77,6 +77,8 @@ jobs:
           install -m 700 -d "$HOME/.ssh"
           printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/homefinds_deploy"
           chmod 600 "$HOME/.ssh/homefinds_deploy"
+          ssh-keygen -y -f "$HOME/.ssh/homefinds_deploy" > "$HOME/.ssh/homefinds_deploy.pub"
+          ssh-keygen -lf "$HOME/.ssh/homefinds_deploy.pub"
           printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
           chmod 600 "$HOME/.ssh/known_hosts"
 
@@ -91,7 +93,9 @@ jobs:
           test -n "$CPANEL_SSH_HOST" || { echo "Missing CPANEL_SSH_HOST secret"; exit 1; }
           test -n "$CPANEL_SSH_PORT" || { echo "Missing CPANEL_SSH_PORT secret"; exit 1; }
           test -n "$CPANEL_SSH_USER" || { echo "Missing CPANEL_SSH_USER secret"; exit 1; }
+          echo "SSH target: $CPANEL_SSH_USER@$CPANEL_SSH_HOST:$CPANEL_SSH_PORT"
           ssh \
+            -vv \
             -i "$HOME/.ssh/homefinds_deploy" \
             -p "$CPANEL_SSH_PORT" \
             -o BatchMode=yes \
