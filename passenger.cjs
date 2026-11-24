@@ -7,10 +7,10 @@ const { createServer } = require("node:http");
 const path = require("node:path");
 
 const rawPort = process.env.PORT;
-const port = Number(rawPort);
+const port = rawPort ? Number(rawPort) : undefined;
 
-if (!rawPort || !Number.isInteger(port) || port < 1 || port > 65535) {
-  throw new Error("Passenger must provide a valid PORT environment variable.");
+if (rawPort && (!Number.isInteger(port) || port < 1 || port > 65535)) {
+  throw new Error("If provided, PORT must be a valid TCP port.");
 }
 
 // Passenger starts this file directly. Always serve the built production app.
@@ -39,9 +39,23 @@ app
       });
     });
 
-    server.listen(port, () => {
-      console.log(`Home Finds production server listening on Passenger port ${port}`);
-    });
+    const onListening = () => {
+      console.log(
+        port
+          ? `Home Finds production server listening on port ${port}`
+          : "Home Finds production server listening on the LiteSpeed application socket",
+      );
+    };
+
+    // LiteSpeed's CloudLinux Node.js Selector patches listen() to use its
+    // application socket and does not provide PORT. Other Passenger hosts can
+    // continue to supply PORT and use a TCP listener.
+    if (port) {
+      server.listen(port, onListening);
+    } else {
+      server.once("listening", onListening);
+      server.listen();
+    }
   })
   .catch((error) => {
     console.error("Could not prepare the Next.js production build:", error);

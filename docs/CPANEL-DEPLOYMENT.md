@@ -11,7 +11,7 @@ Configure **Setup Node.js App** for the main domain:
 - Application URL: `mightyhomefinds.com` at `/`
 - Application root: `homefinds` (the directory containing `package.json`, `app/`, `public/`, and `passenger.cjs`)
 - Startup file: `passenger.cjs`
-- Passenger must provide the assigned `PORT`.
+- This CloudLinux/LiteSpeed host routes Node.js apps through a LiteSpeed application socket and does not provide `PORT`. `passenger.cjs` uses the socket when `PORT` is absent and uses a TCP port when another Passenger host provides one.
 
 The cPanel home directory is `/home2/mightyhomefinds`; the app and cloned Git repository are `/home2/mightyhomefinds/homefinds`.
 
