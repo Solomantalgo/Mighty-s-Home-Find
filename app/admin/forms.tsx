@@ -50,9 +50,9 @@ export function ProductImageUpload({ productId, primary = false, replacing = fal
   return <form action={action} className="admin-upload-form"><input type="hidden" name="product_id" value={productId}/><input type="hidden" name="image_role" value={primary ? "primary" : "gallery"}/><label>{primary ? "Primary listing photo" : "Additional product photo"}<input required type="file" name="file" accept="image/jpeg,image/png,image/webp"/></label><button className="admin-secondary" disabled={pending}>{pending ? "Uploading..." : replacing ? "Replace primary photo" : "Upload image"}</button><Feedback state={state}/></form>;
 }
 
-export function RemoveImageSetForm({ productId, variantId }: { productId: string; variantId: string }) {
+export function RemoveImageSetForm({ productId, variantId, firstSet = false }: { productId: string; variantId: string; firstSet?: boolean }) {
   const [state, action, pending] = useActionState<State, FormData>(async (_old, data) => removeImageSetAction(data), {});
-  return <form action={action} onSubmit={(event) => { if (!window.confirm("Remove this image set from the listing?")) event.preventDefault(); }}><input type="hidden" name="product_id" value={productId}/><input type="hidden" name="variant_id" value={variantId}/><button className="admin-mini-action admin-danger" disabled={pending}>{pending ? "Removing..." : "Remove image set"}</button><Feedback state={state}/></form>;
+  return <form action={action} onSubmit={(event) => { if (!window.confirm(firstSet ? "Discard this first design and colour set, its frame-only and dressed images, and its primary listing photo?" : "Discard this design and colour set, including its frame-only and dressed images?")) event.preventDefault(); }}><input type="hidden" name="product_id" value={productId}/><input type="hidden" name="variant_id" value={variantId}/><button className="admin-mini-action admin-danger" disabled={pending}>{pending ? "Discarding..." : "Discard set"}</button><Feedback state={state}/></form>;
 }
 
 export function DeleteProductForm({ productId, status }: { productId: string; status: string }) {

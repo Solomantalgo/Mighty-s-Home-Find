@@ -240,7 +240,10 @@ export async function saveListingDetailsAction(formData: FormData) {
     }
   } else {
     const options = await getCatalogueOptions();
-    const { error } = await auth.supabase.from("variants").insert({ product_id: productId, design, colour, size: "standard", sku: `HF-${crypto.randomUUID()}`, price_ugx: options.sizes[0].price, is_active: true });
+    const { data: inactive } = await auth.supabase.from("variants").select("id").eq("product_id", productId).eq("design", design).eq("colour", colour).eq("size", "standard").eq("is_active", false).maybeSingle();
+    const { error } = inactive
+      ? await auth.supabase.from("variants").update({ is_active: true }).eq("id", inactive.id)
+      : await auth.supabase.from("variants").insert({ product_id: productId, design, colour, size: "standard", sku: `HF-${crypto.randomUUID()}`, price_ugx: options.sizes[0].price, is_active: true });
     if (error) {
       if (!id) await auth.supabase.from("products").delete().eq("id", productId);
       return { error: "Could not create the matching image set. Please try again." };
@@ -279,10 +282,26 @@ export async function removeImageSetAction(formData: FormData) {
   const variantId = text(formData, "variant_id", 40);
   if (!/^[0-9a-f-]{36}$/i.test(productId) || !/^[0-9a-f-]{36}$/i.test(variantId)) return { error: "Invalid image set." };
   const { data: product } = await auth.supabase.from("products").select("status").eq("id", productId).maybeSingle();
-  if (!product || product.status === "published") return { error: "Unpublish this listing before removing an image set." };
-  const { error } = await auth.supabase.from("variants").update({ is_active: false }).eq("id", variantId).eq("product_id", productId);
-  if (error) return { error: "Could not remove this image set." };
-  revalidatePath(`/admin/products/${productId}/images`); revalidatePath(`/admin/products/${productId}/review`);
+  if (!product || product.status === "published") return { error: "Unpublish this listing before discarding an image set." };
+  const { data: variant } = await auth.supabase.from("variants").select("id,design,is_active").eq("id", variantId).eq("product_id", productId).maybeSingle();
+  if (!variant?.is_active) return { error: "This image set is no longer in the listing." };
+  const [{ data: assets }, { data: active }] = await Promise.all([
+    auth.supabase.from("configurator_assets").select("storage_path").eq("variant_id", variantId),
+    auth.supabase.from("variants").select("id,design").eq("product_id", productId).eq("is_active", true).order("created_at"),
+  ]);
+  const firstSet = active?.[0]?.id === variantId;
+  const { data: primaryPhoto } = firstSet ? await auth.supabase.from("product_images").select("id,storage_path").eq("product_id", productId).eq("is_primary", true).maybeSingle() : { data: null };
+  const { error } = await auth.supabase.from("variants").delete().eq("id", variantId).eq("product_id", productId);
+  if (error) return { error: "Could not discard this image set." };
+  if (firstSet && active?.[1]) {
+    await auth.supabase.from("products").update({ name: active[1].design, model_name: active[1].design }).eq("id", productId);
+  }
+  if (primaryPhoto) {
+    const { error: photoError } = await auth.supabase.from("product_images").delete().eq("id", primaryPhoto.id).eq("product_id", productId);
+    if (!photoError) await Promise.allSettled([removeMediaFile(primaryPhoto.storage_path)]);
+  }
+  await Promise.allSettled((assets ?? []).map((asset) => removeMediaFile(asset.storage_path)));
+  revalidatePath("/"); revalidatePath("/admin/products"); revalidatePath(`/admin/products/${productId}`); revalidatePath(`/admin/products/${productId}/images`); revalidatePath(`/admin/products/${productId}/review`);
   return { success: true };
 }
 

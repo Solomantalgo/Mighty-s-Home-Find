@@ -12,9 +12,9 @@ function choices(values: string[], selected?: string | null) {
   return selected && !values.includes(selected) ? [selected, ...values] : values;
 }
 
-export function ListingDetailsForm({ categories, options, product, primaryColour }: { categories: { id: string; name: string }[]; options: CatalogueOptions; product?: ProductDetails; primaryColour?: string | null }) {
+export function ListingDetailsForm({ categories, options, product, primaryDesign, primaryColour }: { categories: { id: string; name: string }[]; options: CatalogueOptions; product?: ProductDetails; primaryDesign?: string | null; primaryColour?: string | null }) {
   const [state, action, pending] = useActionState<State, FormData>(async (_old, data) => saveListingDetailsAction(data), {});
-  const design = product?.model_name || product?.name;
+  const design = primaryDesign || product?.model_name || product?.name;
   return <form action={action} className="admin-editor-form"><input type="hidden" name="id" value={product?.id ?? ""}/>
     <section className="admin-form-card"><div className="admin-form-section-head"><span>01</span><div><h2>Listing details</h2><p>Choose one design and colour for the first image set. Sizes and prices are shared across the shop.</p></div></div>
       <div className="admin-form-grid">
