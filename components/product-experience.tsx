@@ -63,13 +63,13 @@ export function ProductExperience({
     products.find((item) => item.id === productId) ?? initialProduct;
   const activeCategory =
     categories.find((item) => item.slug === activeCategorySlug) ??
-    categories.find((item) => item.name === product.category) ??
-    categories[1];
+    categories.find((item) => item.slug === product.categorySlug) ??
+    categories[0];
   const initialFinishId =
-    initialProduct.finishes.find(
-      (item) => item.name === initialProduct.colorName,
-    )?.id ?? initialProduct.finishes[0].id;
+    initialProduct.finishes.find((item) => item.name === initialProduct.colorName)?.id ??
+    initialProduct.previewSizes[0].finishes[0];
   const [finishId, setFinishId] = useState<FinishId>(initialFinishId);
+  const [imageSizeId, setImageSizeId] = useState(initialProduct.defaultImageSize);
   const [selectedMeasurement, setSelectedMeasurement] =
     useState<BedMeasurementId>(DEFAULT_BED_MEASUREMENT);
   const [mode, setMode] = useState<ViewMode>("compare");
@@ -82,11 +82,13 @@ export function ProductExperience({
     product.finishes[0];
   const frameImage = getCatalogVariantImage(
     product.configuratorDesign,
+    imageSizeId,
     finish.id,
     "frame",
   );
   const dressedImage = getCatalogVariantImage(
     product.configuratorDesign,
+    imageSizeId,
     finish.id,
     "dressed",
   );
@@ -95,6 +97,8 @@ export function ProductExperience({
     .filter((item): item is BedProduct => Boolean(item));
   const relatedModels = modelChoices.filter((item) => item.id !== product.id);
   const unitPrice = bedMeasurementPrice(selectedMeasurement);
+  const imageSizes = product.previewSizes;
+  const availableFinishes = imageSizes.find((size) => size.id === imageSizeId)?.finishes ?? [];
   const total = unitPrice * quantity;
   function selectModel(
     nextProduct: BedProduct,
@@ -108,6 +112,7 @@ export function ProductExperience({
     setProductId(nextProduct.id);
     setCategoryUnavailable(false);
     setFinishId(nextFinish.id);
+    setImageSizeId(nextProduct.defaultImageSize);
     setQuantity(1);
     setDesignPickerOpen(false);
     setMode("compare");
@@ -128,6 +133,7 @@ export function ProductExperience({
   function addToCart() {
     addItem({
       productId: product.id,
+      imageSizeId,
       measurement: selectedMeasurement,
       finishId: finish.id,
       quantity,
@@ -241,9 +247,9 @@ export function ProductExperience({
             <span className="preview-placeholder-icon"><Layers3 size={23} /></span>
             <h1>{activeCategory.name}</h1>
             <p>
-              We don’t yet have category-matched frame-only and dressed preview
-              images for this bed type. Choose King, Queen, or Double to explore
-              the available sample bed designs.
+                We don’t yet have category-matched frame-only and dressed preview
+                images for this bed type. Choose another category to explore the
+                available sample bed designs.
             </p>
           </section>
         ) : (
@@ -378,7 +384,7 @@ export function ProductExperience({
                 <small>{finish.name}</small>
               </div>
               <div className="finish-swatches">
-                {product.finishes.map((option) => (
+                {product.finishes.filter((option) => availableFinishes.includes(option.id)).map((option) => (
                   <button
                     className={`finish-swatch ${finish.id === option.id ? "active" : ""}`}
                     key={option.name}
@@ -396,6 +402,14 @@ export function ProductExperience({
               </div>
             </div>
             <div className="details-divider" />
+            {imageSizes.length > 1 && <div className="image-concept-size">
+              <span>Image concept variant</span>
+              <div>{imageSizes.map((size) => <button key={size.id} type="button" className={imageSizeId === size.id ? "active" : ""} aria-pressed={imageSizeId === size.id} onClick={() => {
+                setImageSizeId(size.id);
+                if (!size.finishes.includes(finish.id)) setFinishId(size.finishes.includes("matte-black") ? "matte-black" : size.finishes[0]);
+              }}>{size.label}</button>)}</div>
+              <small>Generated image variants are visual concepts and do not indicate a bed measurement.</small>
+            </div>}
             <div className="detail-title-row">
               <div>
                 <h2>{product.name}</h2>

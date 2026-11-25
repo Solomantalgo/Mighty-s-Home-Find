@@ -12,6 +12,7 @@ import {
 } from "react";
 import { CircleCheck, Minus, Plus, ShoppingBag, Trash2, Truck, X } from "lucide-react";
 import { getCatalogVariantImage } from "@/lib/bed-color-variants";
+import type { FinishId } from "@/lib/bed-color-variants";
 import {
   bedMeasurementPrice,
   bedMeasurements,
@@ -23,8 +24,9 @@ import {
 export type CartItem = {
   key: string;
   productId: string;
+  imageSizeId: string;
   measurement: BedMeasurementId;
-  finishId: string;
+  finishId: FinishId;
   quantity: number;
 };
 
@@ -47,9 +49,9 @@ const CartContext = createContext<CartContextValue | null>(null);
 const STORAGE_KEY = "homefinds-cart-v1";
 
 function makeCartKey(
-  item: Pick<CartItem, "productId" | "measurement" | "finishId">,
+  item: Pick<CartItem, "productId" | "imageSizeId" | "measurement" | "finishId">,
 ) {
-  return `${item.productId}:${item.measurement}:${item.finishId}`;
+  return `${item.productId}:${item.imageSizeId}:${item.measurement}:${item.finishId}`;
 }
 
 export function useCart() {
@@ -75,8 +77,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
               const product = products.find((entry) => entry.id === item.productId);
               const validMeasurement = bedMeasurements.some((measurement) => measurement.id === item.measurement);
               const validFinish = product?.finishes.some((finish) => finish.id === item.finishId);
-              if (!product || !validMeasurement || !validFinish || !Number.isInteger(item.quantity) || item.quantity < 1) return [];
-              return [{ ...item, key: makeCartKey(item), quantity: Math.min(20, item.quantity) }];
+              const legacyImageSize = item.imageSizeId ?? product?.previewSizes.find((size) => size.finishes.includes(item.finishId))?.id ?? product?.defaultImageSize;
+              const validImageSize = product?.previewSizes.some((size) => size.id === legacyImageSize && size.finishes.includes(item.finishId));
+              if (!product || !validMeasurement || !validFinish || !validImageSize || !Number.isInteger(item.quantity) || item.quantity < 1) return [];
+              const normalized = { ...item, imageSizeId: legacyImageSize!, key: "" };
+              return [{ ...normalized, key: makeCartKey(normalized), quantity: Math.min(20, item.quantity) }];
             }));
           }
         }
@@ -269,10 +274,11 @@ function CartDrawer() {
                       <Image
                         src={getCatalogVariantImage(
                           product.configuratorDesign,
+                          item.imageSizeId,
                           finish.id,
                           "dressed",
                         )}
-                        alt={`${product.shortName}, ${finish.name}`}
+                        alt={`${product.alt}, ${finish.name}`}
                         fill
                         sizes="110px"
                       />
@@ -282,6 +288,7 @@ function CartDrawer() {
                       <p>
                         {finish.name} <span>·</span> {measurement.label}
                       </p>
+                      <p>Image concept: {product.previewSizes.find((size) => size.id === item.imageSizeId)?.label}</p>
                       <strong>{formatUGX(unitPrice)}</strong>
                       <div className="cart-line-controls">
                         <div

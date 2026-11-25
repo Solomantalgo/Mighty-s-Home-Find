@@ -10,7 +10,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
   const [{ slug }, query] = await Promise.all([params, searchParams]);
   const product = products.find((item) => item.slug === slug);
   if (!product) notFound();
-  const category = categories.find((item) => item.slug === query.category) ?? categories.find((item) => item.name === product.category) ?? categories[1];
+  const category = categories.find((item) => item.slug === query.category) ?? categories.find((item) => item.slug === product.categorySlug) ?? categories[0];
   const backHref = category.href;
   return <ProductExperience product={product} backHref={backHref} categorySlug={category.slug}/>;
 }

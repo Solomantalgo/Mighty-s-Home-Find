@@ -150,7 +150,7 @@ export function CheckoutExperience({
                 <div className="checkout-item" key={item.key}>
                   <div className="checkout-item-image">
                     <Image
-                      src={getCatalogVariantImage(product.configuratorDesign, finish.id, "dressed")}
+                      src={getCatalogVariantImage(product.configuratorDesign, item.imageSizeId, finish.id, "dressed")}
                       alt={`${product.shortName} bed in ${finish.name}`}
                       fill
                       sizes="100px"
@@ -159,6 +159,7 @@ export function CheckoutExperience({
                   <div className="checkout-item-info">
                     <b>{product.name}</b>
                     <small>{measurement.label} &middot; {finish.name} finish</small>
+                    <small>Image concept: {product.previewSizes.find((size) => size.id === item.imageSizeId)?.label}</small>
                     <small>Quantity: {item.quantity}</small>
                   </div>
                   <strong>{formatUGX(lineTotal)}</strong>

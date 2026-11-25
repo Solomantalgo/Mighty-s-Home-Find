@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { CartProvider } from "@/components/cart-provider";
 import "./globals.css";
+import "./catalog.css";
 
 export const metadata: Metadata = {
   title: "HomeFinds | Metallic beds for homes and businesses",

@@ -17,6 +17,7 @@ export default async function CheckoutPage({
     product?: string;
     measurement?: string;
     finish?: string;
+    previewSize?: string;
     quantity?: string;
   }>;
 }) {
@@ -28,10 +29,12 @@ export default async function CheckoutPage({
     ? (params.measurement as BedMeasurementId)
     : "5x6";
   const finishId = product?.finishes.find((finish) => finish.id === params.finish)?.id ?? product?.finishes[0].id;
+  const imageSizeId = product?.previewSizes.find((size) => size.id === params.previewSize)?.id ?? product?.defaultImageSize;
   const quantity = Math.min(20, Math.max(1, Number.parseInt(params.quantity ?? "1", 10) || 1));
   const initialItem: CartItem | null = product && finishId ? {
-    key: `${product.id}:${measurement}:${finishId}`,
+    key: `${product.id}:${imageSizeId}:${measurement}:${finishId}`,
     productId: product.id,
+    imageSizeId: imageSizeId!,
     measurement,
     finishId,
     quantity,

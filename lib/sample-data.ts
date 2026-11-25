@@ -1,23 +1,23 @@
-import {
-  getCatalogVariantImage,
-  type BedDesignId,
-  type FinishId,
-} from "@/lib/bed-color-variants";
+import { catalogDesigns, getCatalogVariantImage, type FinishId } from "@/lib/bed-color-variants";
 
 export type Finish = { id: FinishId; name: string; hex: string };
+export type BedImageSize = { id: string; label: string; finishes: FinishId[] };
 export type BedProduct = {
   id: string;
   slug: string;
   name: string;
   shortName: string;
   category: string;
+  categorySlug: string;
   rating: string;
   reviews: number;
   description: string;
   frame: string;
   dressed: string;
   image: string;
-  configuratorDesign: BedDesignId;
+  configuratorDesign: string;
+  defaultImageSize: string;
+  previewSizes: BedImageSize[];
   colorName: string;
   finishes: Finish[];
   delivery: string;
@@ -37,182 +37,87 @@ export const DEFAULT_BED_MEASUREMENT: BedMeasurementId = "5x6";
 export const bedMeasurementPrice = (id: BedMeasurementId) =>
   bedMeasurements.find((item) => item.id === id)?.price ?? bedMeasurements[1].price;
 
-// All customer-facing product and commercial details in this file are sample content.
-export const sampleFinishes: Finish[] = [
-  { id: "matte-black", name: "Matte Black", hex: "#242522" },
-  { id: "white", name: "White", hex: "#e9e5dd" },
-  { id: "graphite-grey", name: "Graphite Grey", hex: "#777976" },
-  { id: "antique-bronze", name: "Antique Bronze", hex: "#8a6448" },
-  { id: "deep-navy", name: "Deep Navy", hex: "#283d53" },
-];
+// Commercial copy and amounts below are illustrative sample data. Image-size
+// tokens from generated filenames are kept separate from these measurements.
+const finishDetails: Record<FinishId, Finish> = {
+  "matte-black": { id: "matte-black", name: "Matte Black", hex: "#242522" },
+  white: { id: "white", name: "White", hex: "#e9e5dd" },
+  "graphite-grey": { id: "graphite-grey", name: "Graphite Grey", hex: "#777976" },
+  "antique-bronze": { id: "antique-bronze", name: "Antique Bronze", hex: "#8a6448" },
+  "deep-navy": { id: "deep-navy", name: "Deep Navy", hex: "#283d53" },
+};
 
-export const products: BedProduct[] = [
-  {
-    id: "classic",
-    slug: "classic-spindle",
-    name: "Classic Spindle Metallic Bed",
-    shortName: "Classic Spindle",
-    category: "King Beds",
-    rating: "4.8",
-    reviews: 56,
-    description: "A timeless vertical-rail silhouette with clean, airy lines.",
-    frame: getCatalogVariantImage("classic-spindle", "matte-black", "frame"),
-    dressed: getCatalogVariantImage("classic-spindle", "matte-black", "dressed"),
-    image: getCatalogVariantImage("classic-spindle", "matte-black", "dressed"),
-    configuratorDesign: "classic-spindle",
-    colorName: "Matte Black",
-    finishes: sampleFinishes,
-    delivery: "2\u20134 days",
-    included: "Frame only. Mattress and bedding are shown for styling.",
-    material: "Metal frame \u00B7 sample details",
-    care: "Sample care information",
-    alt: "Classic spindle bed frame shown with sample bedding",
-  },
-  {
-    id: "queen",
-    slug: "square-grid",
-    name: "Square Grid Metallic Bed",
-    shortName: "Square Grid",
-    category: "Queen Beds",
-    rating: "4.9",
-    reviews: 32,
-    description: "A geometric grid profile with a neat, contemporary look.",
-    frame: getCatalogVariantImage("square-grid", "white", "frame"),
-    dressed: getCatalogVariantImage("square-grid", "white", "dressed"),
-    image: getCatalogVariantImage("square-grid", "white", "dressed"),
-    configuratorDesign: "square-grid",
-    colorName: "White",
-    finishes: sampleFinishes,
-    delivery: "2\u20134 days",
-    included: "Frame only. Mattress and bedding are shown for styling.",
-    material: "Metal frame \u00B7 sample details",
-    care: "Sample care information",
-    alt: "Square grid bed frame shown with sample bedding",
-  },
-  {
-    id: "bunk",
-    slug: "arched-rail",
-    name: "Arched Rail Metallic Bed",
-    shortName: "Arched Rail",
-    category: "Double Beds",
-    rating: "4.8",
-    reviews: 41,
-    description: "Softly curved rails bring a graceful touch to this sample design.",
-    frame: getCatalogVariantImage("arched-rail", "matte-black", "frame"),
-    dressed: getCatalogVariantImage("arched-rail", "matte-black", "dressed"),
-    image: getCatalogVariantImage("arched-rail", "matte-black", "dressed"),
-    configuratorDesign: "arched-rail",
-    colorName: "Matte Black",
-    finishes: sampleFinishes,
-    delivery: "2\u20134 days",
-    included: "Frame only. Mattress and bedding are shown for styling.",
-    material: "Metal frame \u00B7 sample details",
-    care: "Sample care information",
-    alt: "Arched rail bed frame shown with sample bedding",
-  },
-  {
-    id: "double-lowline",
-    slug: "double-lowline",
-    name: "Lowline Platform Double Bed",
-    shortName: "Lowline Platform",
-    category: "Double Beds",
-    rating: "4.8",
-    reviews: 24,
-    description: "A low, broad horizontal-rail frame with a distinct profile.",
-    frame: getCatalogVariantImage("double-lowline", "matte-black", "frame"),
-    dressed: getCatalogVariantImage("double-lowline", "matte-black", "dressed"),
-    image: getCatalogVariantImage("double-lowline", "matte-black", "dressed"),
-    configuratorDesign: "double-lowline",
-    colorName: "Matte Black",
-    finishes: sampleFinishes,
-    delivery: "2\u20134 days",
-    included: "Frame only. Mattress and bedding are shown for styling.",
-    material: "Metal frame \u00B7 sample details",
-    care: "Sample care information",
-    alt: "Lowline platform double bed with broad horizontal metal rails",
-  },
-];
-
-export const categories = [
-  {
-    slug: "king-beds",
-    name: "King Beds",
-    chipLabel: "King Beds",
-    href: "/products/classic-spindle?category=king-beds",
-    modelIds: ["classic"],
-    defaultProductId: "classic",
-    modelHeading: "King Bed Models",
-    image: "/assets/category-media/king-beds.png",
-    alternateImage: "/assets/category-media/king-beds-2.png",
-    alt: "Generated adult king bed category concept",
-  },
-  {
-    slug: "queen-beds",
-    name: "Queen Beds",
-    chipLabel: "Queen Beds",
-    href: "/products/square-grid?category=queen-beds",
-    modelIds: ["queen"],
-    defaultProductId: "queen",
-    modelHeading: "Queen Bed Models",
-    image: "/assets/category-media/queen-beds.png",
-    alternateImage: "/assets/category-media/queen-beds-2.png",
-    alt: "Generated adult queen bed category concept",
-  },
-  {
-    slug: "double-beds",
-    name: "Double Beds",
-    chipLabel: "Double Beds",
-    href: "/products/double-lowline?category=double-beds",
-    modelIds: ["double-lowline", "bunk"],
-    defaultProductId: "double-lowline",
-    modelHeading: "Double Bed Models",
-    image: "/assets/category-media/double-beds-1.png",
-    alternateImage: "/assets/category-media/double-beds-2.png",
-    alt: "Generated adult double bed category concept",
-  },
-  {
-    slug: "triple-beds",
-    name: "Triple Beds",
-    chipLabel: "Triple Beds",
-    href: "/products/classic-spindle?category=triple-beds",
-    modelIds: [],
-    defaultProductId: "classic",
-    modelHeading: "Triple Bed Models",
-    image: "/assets/category-media/triple-beds-1.png",
-    alternateImage: "/assets/category-media/triple-beds-2.png",
-    alt: "Generated triple-bed concept image; illustrative only",
-  },
-  {
-    slug: "kids-beds",
-    name: "Kids\u2019 Beds",
-    chipLabel: "Kids\u2019 Beds",
-    href: "/products/classic-spindle?category=kids-beds",
-    modelIds: [],
-    defaultProductId: "classic",
-    modelHeading: "Kids\u2019 Bed Models",
-    image: "/assets/category-media/kids-beds.png",
-    alternateImage: "/assets/category-media/kids-beds-2.png",
-    alt: "Generated child-sized bed category concept",
-  },
-  {
-    slug: "bunk-beds",
-    name: "Bunk Beds",
-    chipLabel: "Bunk Beds",
-    href: "/products/classic-spindle?category=bunk-beds",
-    modelIds: [],
-    defaultProductId: "classic",
-    modelHeading: "Bunk Bed Models",
-    image: "/assets/category-media/bunk-beds.png",
-    alternateImage: "/assets/category-media/bunk-beds-2.png",
-    alt: "Generated two-level bunk bed category concept",
-  },
+const categoryDefinitions = [
+  { slug: "king-beds", name: "King Beds", chipLabel: "King Beds", modelHeading: "King Bed Models", image: "/assets/category-media/king-beds.png", alternateImage: "/assets/category-media/king-beds-2.png", alt: "Generated king bed category concept", concept: false },
+  { slug: "queen-beds", name: "Queen Beds", chipLabel: "Queen Beds", modelHeading: "Queen Bed Models", image: "/assets/category-media/queen-beds.png", alternateImage: "/assets/category-media/queen-beds-2.png", alt: "Generated queen bed category concept", concept: false },
+  { slug: "double-beds", name: "Double Beds", chipLabel: "Double Beds", modelHeading: "Double Bed Models", image: "/assets/category-media/double-beds-1.png", alternateImage: "/assets/category-media/double-beds-2.png", alt: "Generated double bed category concept", concept: false },
+  { slug: "triple-beds", name: "Triple Beds", chipLabel: "Triple Beds", modelHeading: "Triple Bed Models", image: "/assets/category-media/triple-beds-1.png", alternateImage: "/assets/category-media/triple-beds-2.png", alt: "Generated triple-bed concept image; layout is illustrative", concept: true },
+  { slug: "kids-beds", name: "Kids’ Beds", chipLabel: "Kids’ Beds", modelHeading: "Kids’ Bed Models", image: "/assets/category-media/kids-beds.png", alternateImage: "/assets/category-media/kids-beds-2.png", alt: "Generated child-sized bed category concept", concept: false },
+  { slug: "bunk-beds", name: "Bunk Beds", chipLabel: "Bunk Beds", modelHeading: "Bunk Bed Models", image: "/assets/category-media/bunk-beds.png", alternateImage: "/assets/category-media/bunk-beds-2.png", alt: "Generated two-level bunk bed category concept", concept: false },
 ] as const;
 
+const categoryNames = new Map<string, string>(categoryDefinitions.map((category) => [category.slug, category.name]));
+const sizeLabel = (value: string) => value.split("-").map((part) => part.replace(/^./, (letter) => letter.toUpperCase())).join(" ");
+
+export const products: BedProduct[] = catalogDesigns.map((design) => {
+  const category = categoryDefinitions.find((item) => item.slug === design.category)!;
+  const imageSizes: BedImageSize[] = design.imageSizes.map((id) => ({
+    id,
+    label: sizeLabel(id),
+    finishes: design.pairs.filter((pair) => pair.imageSize === id).map((pair) => pair.finish),
+  }));
+  const defaultImageSize = imageSizes.find((size) => size.id === "standard")?.id ?? imageSizes[0].id;
+  const defaultFinish = imageSizes.find((size) => size.id === defaultImageSize)?.finishes.includes("matte-black")
+    ? "matte-black" : imageSizes.find((size) => size.id === defaultImageSize)!.finishes[0];
+  const id = design.id;
+  const frame = getCatalogVariantImage(id, defaultImageSize, defaultFinish, "frame");
+  const dressed = getCatalogVariantImage(id, defaultImageSize, defaultFinish, "dressed");
+  const name = `Bed Design ${design.design.replace("design-", "")}`;
+  return {
+    id,
+    slug: id,
+    name: `${category.name} ${name}`,
+    shortName: name,
+    category: categoryNames.get(design.category) ?? category.name,
+    categorySlug: design.category,
+    rating: "4.8",
+    reviews: 24,
+    description: `Generated ${category.name.toLowerCase()} design concept for previewing bed styles.`,
+    frame,
+    dressed,
+    image: dressed,
+    configuratorDesign: id,
+    defaultImageSize,
+    previewSizes: imageSizes,
+    colorName: finishDetails[defaultFinish].name,
+    finishes: [...new Set(design.pairs.map((pair) => pair.finish))].map((finish) => finishDetails[finish]),
+    delivery: "2–4 days",
+    included: "Generated product imagery is a concept preview.",
+    material: "Sample product details",
+    care: "Sample care information",
+    alt: `${category.name}, ${design.design.replace("design-", "design ")}, ${sizeLabel(defaultImageSize)} generated bed image concept with sample bedding`,
+  };
+});
+
+export const categories = categoryDefinitions.map((category) => {
+  const modelProducts = products.filter((product) => product.categorySlug === category.slug);
+  const defaultProduct = modelProducts[0];
+  const categorySpecificImage = defaultProduct?.image ?? category.image;
+  return {
+    ...category,
+    href: defaultProduct ? `/products/${defaultProduct.slug}?category=${category.slug}` : "#shop",
+    modelIds: modelProducts.map((product) => product.id),
+    defaultProductId: defaultProduct?.id ?? "",
+    image: categorySpecificImage,
+    alt: defaultProduct?.alt ?? category.alt,
+  };
+});
+
 export const benefits = [
-  { icon: "truck", title: "Delivery", detail: "2\u20134 days" },
+  { icon: "truck", title: "Delivery", detail: "2–4 days" },
   { icon: "shield", title: "Strong & Durable", detail: "Metal frame" },
   { icon: "tag", title: "Great Value", detail: "Sample prices" },
-  { icon: "support", title: "Friendly Support", detail: "We\u2019re here to help" },
+  { icon: "support", title: "Friendly Support", detail: "We’re here to help" },
 ];
 
 export const sampleReview = {
@@ -221,5 +126,4 @@ export const sampleReview = {
   stars: 5,
 };
 
-export const formatUGX = (amount: number) =>
-  `UGX ${amount.toLocaleString("en-UG")}`;
+export const formatUGX = (amount: number) => `UGX ${amount.toLocaleString("en-UG")}`;
