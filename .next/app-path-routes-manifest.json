@@ -1,0 +1,22 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/_global-error/page": "/_global-error",
+  "/api/catalogue-options/route": "/api/catalogue-options",
+  "/auth/confirm/route": "/auth/confirm",
+  "/media/[...path]/route": "/media/[...path]",
+  "/admin/login/page": "/admin/login",
+  "/admin/categories/page": "/admin/categories",
+  "/admin/options/page": "/admin/options",
+  "/admin/invite/accept/page": "/admin/invite/accept",
+  "/admin/activity/page": "/admin/activity",
+  "/admin/page": "/admin",
+  "/admin/products/[id]/page": "/admin/products/[id]",
+  "/admin/products/[id]/images/page": "/admin/products/[id]/images",
+  "/admin/products/[id]/review/page": "/admin/products/[id]/review",
+  "/admin/products/new/page": "/admin/products/new",
+  "/admin/staff/page": "/admin/staff",
+  "/checkout/page": "/checkout",
+  "/page": "/",
+  "/products/[slug]/page": "/products/[slug]",
+  "/admin/products/page": "/admin/products"
+}

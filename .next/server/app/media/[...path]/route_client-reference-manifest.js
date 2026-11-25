@@ -1,0 +1,1 @@
+globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST["/media/[...path]/route"]={"moduleLoading":{"prefix":"/_next/"},"ssrModuleMapping":{},"edgeSSRModuleMapping":{},"clientModules":{},"entryCSSFiles":{"/home/runner/work/Mighty-s-Home-Find/Mighty-s-Home-Find/app/media/[...path]/route":[]},"rscModuleMapping":{},"edgeRscModuleMapping":{}};

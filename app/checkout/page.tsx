@@ -1,0 +1,53 @@
+import type { Metadata } from "next";
+import { CheckoutExperience } from "@/components/checkout-experience";
+import { checkoutConfig } from "@/lib/checkout-config";
+import { products, type BedMeasurementId } from "@/lib/sample-data";
+import type { CartItem } from "@/components/cart-provider";
+import { getCatalogueOptions } from "@/lib/catalogue-options";
+
+export const metadata: Metadata = {
+  title: "Checkout | HomeFinds",
+  description:
+    "Review your illustrative HomeFinds order and follow manual MTN MoMo payment steps.",
+};
+
+export default async function CheckoutPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    product?: string;
+    measurement?: string;
+    finish?: string;
+    previewSize?: string;
+    quantity?: string;
+  }>;
+}) {
+  const params = await searchParams;
+  const options = await getCatalogueOptions();
+  const product = products.find((item) => item.slug === params.product);
+  const measurement = options.sizes.some(
+    (item) => item.id === params.measurement,
+  )
+    ? (params.measurement as BedMeasurementId)
+    : "5x6";
+  const finishId = product?.finishes.find((finish) => finish.id === params.finish)?.id ?? product?.finishes[0].id;
+  const imageSizeId = product?.previewSizes.find((size) => size.id === params.previewSize)?.id ?? product?.defaultImageSize;
+  const quantity = Math.min(20, Math.max(1, Number.parseInt(params.quantity ?? "1", 10) || 1));
+  const initialItem: CartItem | null = product && finishId ? {
+    key: `${product.id}:${imageSizeId}:${measurement}:${finishId}`,
+    productId: product.id,
+    imageSizeId: imageSizeId!,
+    measurement,
+    finishId,
+    quantity,
+  } : null;
+  return (
+    <CheckoutExperience
+      sharedSizes={options.sizes}
+      initialItem={initialItem}
+      receivingNumber={checkoutConfig.momoReceivingNumber}
+      supportContact={checkoutConfig.paymentSupportContact}
+      ussdCode={checkoutConfig.ussdCode}
+    />
+  );
+}

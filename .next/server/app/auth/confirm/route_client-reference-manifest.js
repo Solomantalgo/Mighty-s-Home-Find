@@ -1,0 +1,1 @@
+globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST["/auth/confirm/route"]={"moduleLoading":{"prefix":"/_next/"},"ssrModuleMapping":{},"edgeSSRModuleMapping":{},"clientModules":{},"entryCSSFiles":{"/home/runner/work/Mighty-s-Home-Find/Mighty-s-Home-Find/app/auth/confirm/route":[]},"rscModuleMapping":{},"edgeRscModuleMapping":{}};
