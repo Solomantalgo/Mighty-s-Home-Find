@@ -26,7 +26,7 @@ export async function getStorefrontCatalog() {
   if (!categoryRows.length || !productRows.length) return { products: [], categories: [], managed: true };
   const productIds = productRows.map((product) => product.id);
   const [{ data: variants }, { data: gallery }] = await Promise.all([
-    supabase.from("variants").select("id,product_id,design,size,colour,sku").in("product_id", productIds).eq("is_active", true),
+    supabase.from("variants").select("id,product_id,design,size,colour,sku").in("product_id", productIds).eq("is_active", true).order("created_at", { ascending: true }),
     supabase.from("product_images").select("product_id,image_url,alt_text,display_order,is_primary").in("product_id", productIds).order("display_order"),
   ]);
   const variantRows = variants ?? [];
@@ -47,7 +47,7 @@ export async function getStorefrontCatalog() {
     const firstVariant = variantRows.find((variant) => variant.product_id === first?.id);
     const pair = firstVariant ? assetsByVariant.get(firstVariant.id) : undefined;
     const image = (gallery ?? []).find((item) => item.product_id === first?.id && item.is_primary) ?? (gallery ?? []).find((item) => item.product_id === first?.id);
-    return { slug: category.slug, name: category.name, chipLabel: category.name, modelHeading: `${category.name} Models`, image: pair?.dressed ?? image?.image_url ?? "/assets/homefinds-bedroom-hero.png", alternateImage: pair?.dressed ?? image?.image_url ?? "/assets/homefinds-bedroom-hero.png", alt: image?.alt_text ?? `${category.name} bed`, concept: false, href: first ? `/products/${first.slug}?category=${category.slug}` : "#shop", modelIds: items.map((item) => item.id), defaultProductId: first?.id ?? "" };
+    return { slug: category.slug, name: category.name, chipLabel: category.name, modelHeading: `${category.name} Models`, image: image?.image_url ?? pair?.dressed ?? "/assets/homefinds-bedroom-hero.png", alternateImage: image?.image_url ?? pair?.dressed ?? "/assets/homefinds-bedroom-hero.png", alt: image?.alt_text ?? `${category.name} bed`, concept: false, href: first ? `/products/${first.slug}?category=${category.slug}` : "#shop", modelIds: items.map((item) => item.id), defaultProductId: first?.id ?? "" };
   });
   const resolvedProducts: BedProduct[] = productRows.flatMap((row) => {
     const relatedCategory = Array.isArray(row.categories) ? row.categories[0] : row.categories;
@@ -61,6 +61,7 @@ export async function getStorefrontCatalog() {
     if (!category || !primary || !saleVariants.length) return [];
     const finishes = [...new Map(saleVariants.map((variant) => { const color = sampleFinish(variant.colour); return [color.id, color] as const; })).values()];
     const sizes = [...new Map<string, BedImageSize>(saleVariants.map((variant) => [key(variant.size), { id: key(variant.size), label: variant.size, finishes: [...new Set(saleVariants.filter((entry) => key(entry.size) === key(variant.size)).map((entry) => sampleFinish(entry.colour).id))] }] as [string, BedImageSize])).values()];
+    saleVariants.sort((a, b) => Number(b.dressedImage === primary.image_url) - Number(a.dressedImage === primary.image_url));
     const defaultVariant = saleVariants[0];
     const finish = sampleFinish(defaultVariant.colour);
     const modelName = row.model_name || row.name;

@@ -1,21 +1,21 @@
-# Imported bed reconciliation — 2026-11-25
+# Original bed catalogue reconciliation — 2026-11-25
 
-The public prototype uses the same illustrative prices for all designs: 4×6 at UGX 600,000, 5×6 at UGX 700,000, and 6×6 at UGX 800,000. These are not confirmed production sale prices. The pictured size tokens in the generated assets are separate from these measurements. Every imported Supabase bed has a primary bundled gallery image, but no purchasable variant, SKU, or confirmed configurator mapping. None meets the database publication rule.
+The eleven beds shown by the original storefront were imported into Supabase as drafts. Publishing a newer test listing activated the managed catalogue, so the original beds disappeared from the public site. Migration `202611250008_publish_original_catalogue.sql` restored those eleven records as published listings. It linked the existing primary photos and all 126 exact frame/dressed pairs from `lib/generated-bed-image-index.json`.
 
-| Draft bed slug | Matched bundled frame/dressed pairs | Pictured size labels | Publication blocker |
-| --- | ---: | --- | --- |
-| `bunk-beds-design-01` | 1 | twin-over-twin | Confirm sold size, colour, SKU, UGX price, and image mapping |
-| `bunk-beds-design-02` | 1 | twin-over-full | Same |
-| `double-beds-design-01` | 15 | compact, standard, wide | Same |
-| `double-beds-design-02` | 15 | compact, standard, wide | Same |
-| `kids-beds-design-01` | 4 | junior | Same |
-| `king-beds-design-01` | 15 | grand, standard, super-king | Same |
-| `king-beds-design-02` | 15 | grand, standard, super-king | Same |
-| `queen-beds-design-01` | 15 | compact, standard, wide | Same |
-| `queen-beds-design-02` | 15 | compact, standard, wide | Same |
-| `triple-beds-design-01` | 15 | narrow, three-tier, wide | Same |
-| `triple-beds-design-02` | 15 | narrow, three-tier, wide | Same |
+| Published bed | Matched image sets | Pictured size labels |
+| --- | ---: | --- |
+| `bunk-beds-design-01` | 1 | twin-over-twin |
+| `bunk-beds-design-02` | 1 | twin-over-full |
+| `double-beds-design-01` | 15 | compact, standard, wide |
+| `double-beds-design-02` | 15 | compact, standard, wide |
+| `kids-beds-design-01` | 4 | junior |
+| `king-beds-design-01` | 15 | grand, standard, super-king |
+| `king-beds-design-02` | 15 | grand, standard, super-king |
+| `queen-beds-design-01` | 15 | compact, standard, wide |
+| `queen-beds-design-02` | 15 | compact, standard, wide |
+| `triple-beds-design-01` | 15 | narrow, three-tier, wide |
+| `triple-beds-design-02` | 15 | narrow, three-tier, wide |
 
-Source: `lib/sample-data.ts`, `lib/generated-bed-image-index.json`, and migration `202611250001_import_storefront_drafts.sql`. The 126 frame/dressed pairs are bundled under `public/assets/bed-catalog-variants/`; the migration linked only gallery images. The existing prototype shows all generated preview choices, but the repository does not say which combinations the business sells. Do not automatically turn those preview choices into sale variants.
+These image-size labels describe the pictured frame and are separate from the three checkout sizes. The owner confirmed one shared checkout price list for every bed. Legacy variant SKUs and prices are internal compatibility values; the storefront uses the shared list for checkout prices.
 
-For each bed, the owner must provide the actual design/size/colour combinations sold, a unique SKU and confirmed UGX price for each, and the matching pictured size token. Staff can then enter those variants, attach the frame/dressed pair, review the checklist, and publish. Keep sample price labels visible wherever prototype values are still shown. Deploy the authoritative storefront change only after the desired live records are published, because it intentionally does not restore bundled products when the managed catalogue is empty.
+Verification after the migration: eleven original records were published and visible to anonymous Supabase reads; 126 active sets had 252 confirmed image views and eleven primary photos. All eleven public product URLs returned HTTP 200, and the home page contained an original bed design. The bundled image files are tracked under `public/assets/bed-catalog-variants/` and served by cPanel.
