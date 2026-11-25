@@ -116,8 +116,9 @@ jobs:
           current="$(git rev-parse HEAD)"
           if [ "$target" != "$current" ]; then
             git checkout --force --detach "$target"
+            rm -rf "$APP/.next/cache"
             printf '%s\n' "$target" > "$APP/tmp/restart.txt"
-            echo "Deployed $target and requested Passenger restart."
+            echo "Deployed $target, cleared the stale Next.js cache, and requested Passenger restart."
           else
             echo "cPanel is already running $target."
           fi
