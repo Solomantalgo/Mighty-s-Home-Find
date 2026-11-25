@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { addImageSetAction, saveListingDetailsAction } from "@/app/admin/actions";
 import type { CatalogueOptions } from "@/lib/catalogue-options";
@@ -11,7 +12,7 @@ export function ListingDetailsForm({ categories, product }: { categories: { id: 
   return <form action={action} className="admin-editor-form"><input type="hidden" name="id" value={product?.id ?? ""}/>
     <section className="admin-form-card"><div className="admin-form-section-head"><span>01</span><div><h2>Listing details</h2><p>Give the bed a name and category. Sizes and prices are shared across the shop.</p></div></div>
       <div className="admin-form-grid"><label>Product name<input name="name" required minLength={2} maxLength={140} defaultValue={product?.name ?? ""} placeholder="e.g. Classic spindle bed"/></label><label>Category<select name="category_id" required defaultValue={product?.category_id ?? ""}><option value="" disabled>Select category</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label><label>Design / model reference<input name="model_name" maxLength={120} defaultValue={product?.model_name ?? ""} placeholder="Optional"/></label><label className="admin-span-all">Product description<textarea name="description" maxLength={4000} rows={5} defaultValue={product?.description ?? ""} placeholder="Tell shoppers what makes this bed useful"/></label></div>
-    </section>{state.error && <p className="admin-form-error" role="alert">{state.error}</p>}<div className="admin-form-actions"><button className="admin-primary" disabled={pending}>{pending ? "Saving..." : "Save and continue to images"}</button></div>
+    </section>{state.error && <p className="admin-form-error" role="alert">{state.error}</p>}<div className="admin-form-actions admin-listing-actions"><Link className="admin-secondary admin-cancel-link" href="/admin/products">Cancel · Back to products</Link><button className="admin-primary" disabled={pending}>{pending ? "Saving..." : "Save and continue to images"}</button></div>
   </form>;
 }
 
