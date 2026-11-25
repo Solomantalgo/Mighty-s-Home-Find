@@ -199,24 +199,52 @@ export async function saveListingDetailsAction(formData: FormData) {
   const auth = await requireAdmin();
   if (!auth.supabase || !auth.user) return { error: "Not authorised." };
   const id = text(formData, "id", 40);
-  const name = text(formData, "name", 140);
+  const design = text(formData, "design", 120);
+  const colour = text(formData, "colour", 60);
   const category_id = text(formData, "category_id", 40);
-  if (name.length < 2 || !/^[0-9a-f-]{36}$/i.test(category_id)) return { error: "Enter a product name and category." };
-  const { data: category } = await auth.supabase.from("categories").select("id").eq("id", category_id).maybeSingle();
+  if (design.length < 2 || !colour || !/^[0-9a-f-]{36}$/i.test(category_id)) return { error: "Choose a category, design and colour." };
+  const { data: category } = await auth.supabase.from("categories").select("id,slug").eq("id", category_id).maybeSingle();
   if (!category) return { error: "Choose an existing category." };
-  const { data: existing } = id ? await auth.supabase.from("products").select("slug").eq("id", id).maybeSingle() : { data: null };
+  const { data: existing } = id ? await auth.supabase.from("products").select("slug,status").eq("id", id).maybeSingle() : { data: null };
   if (id && !existing) return { error: "Listing not found." };
-  const slug = existing?.slug ?? slugify(name);
-  if (!slug) return { error: "Enter a valid product name." };
-  const payload = { name, slug, category_id, model_name: text(formData, "model_name", 120) || null, description: text(formData, "description", 4000) || null, updated_at: new Date().toISOString() };
+  const { data: primaryVariant } = id ? await auth.supabase.from("variants").select("id,design,colour,size").eq("product_id", id).eq("is_active", true).order("created_at").limit(1).maybeSingle() : { data: null };
+  const changingImageSet = !!primaryVariant && (primaryVariant.design !== design || primaryVariant.colour !== colour);
+  if (existing?.status === "published" && changingImageSet) return { error: "Unpublish this listing before changing its design or colour." };
+  const name = design;
+  const slug = existing?.slug ?? slugify(`${category.slug}-${design}`);
+  if (!slug) return { error: "Choose a valid design." };
+  const payload = {
+    name, slug, category_id, model_name: design,
+    description: text(formData, "description", 4000) || null,
+    included: text(formData, "included", 600) || null,
+    material: text(formData, "material", 400) || null,
+    care: text(formData, "care", 600) || null,
+    delivery_note: text(formData, "delivery_note", 240) || null,
+    updated_at: new Date().toISOString(),
+  };
   let productId = id;
   if (id) {
     const { error } = await auth.supabase.from("products").update(payload).eq("id", id);
-    if (error) return { error: error.code === "23505" ? "A product with that name already exists." : "Could not save listing details." };
+    if (error) return { error: error.code === "23505" ? "That design already has a listing in this category." : "Could not save listing details." };
   } else {
     const { data, error } = await auth.supabase.from("products").insert({ ...payload, status: "draft" }).select("id").single();
-    if (error || !data) return { error: error?.code === "23505" ? "A product with that name already exists." : "Could not create this listing." };
+    if (error || !data) return { error: error?.code === "23505" ? "That design already has a listing in this category." : "Could not create this listing." };
     productId = data.id;
+  }
+  if (primaryVariant) {
+    if (changingImageSet) {
+      const { error } = await auth.supabase.from("variants").update({ design, colour }).eq("id", primaryVariant.id).eq("product_id", productId);
+      if (error) return { error: "Listing details saved, but the design and colour could not be updated. Check for a duplicate image set." };
+      const { error: assetError } = await auth.supabase.from("configurator_assets").update({ match_confirmed: false }).eq("variant_id", primaryVariant.id);
+      if (assetError) return { error: "Listing details saved, but its images could not be flagged for review. Check the image pair before publishing." };
+    }
+  } else {
+    const options = await getCatalogueOptions();
+    const { error } = await auth.supabase.from("variants").insert({ product_id: productId, design, colour, size: "standard", sku: `HF-${crypto.randomUUID()}`, price_ugx: options.sizes[0].price, is_active: true });
+    if (error) {
+      if (!id) await auth.supabase.from("products").delete().eq("id", productId);
+      return { error: "Could not create the matching image set. Please try again." };
+    }
   }
   revalidatePath("/admin"); revalidatePath("/admin/products"); revalidatePath(`/admin/products/${productId}`);
   redirect(`/admin/products/${productId}/images`);
@@ -335,6 +363,7 @@ export async function uploadProductImageAction(formData: FormData) {
   if (!auth.supabase || !auth.user) return { error: "Not authorised." };
   const productId = text(formData, "product_id", 40);
   const requestedAlt = text(formData, "alt_text", 240);
+  const primaryUpload = text(formData, "image_role", 10) === "primary";
   const file = formData.get("file");
   if (!/^[0-9a-f-]{36}$/i.test(productId) || !(file instanceof File)) return { error: "Choose an image under 7 MB." };
   const { data: product } = await auth.supabase.from("products").select("id,name").eq("id", productId).maybeSingle();
@@ -342,8 +371,18 @@ export async function uploadProductImageAction(formData: FormData) {
   const alt_text = requestedAlt || `${product.name} bed photo`;
   let media: Awaited<ReturnType<typeof saveMediaImage>>;
   try { media = await saveMediaImage(file, productId); } catch (error) { return { error: error instanceof Error ? error.message : "Image upload failed." }; }
+  if (primaryUpload) {
+    const { data: current } = await auth.supabase.from("product_images").select("id,storage_path").eq("product_id", productId).eq("is_primary", true).maybeSingle();
+    if (current) {
+      const { error } = await auth.supabase.from("product_images").update({ storage_path: media.storagePath, image_url: media.imageUrl, alt_text }).eq("id", current.id).eq("product_id", productId);
+      if (error) { await removeMediaFile(media.storagePath); return { error: "Primary image could not be replaced." }; }
+      await removeMediaFile(current.storage_path);
+      revalidatePath("/"); revalidatePath(`/admin/products/${productId}/images`); revalidatePath(`/admin/products/${productId}/review`);
+      return { success: true };
+    }
+  }
   const { count: priorCount } = await auth.supabase.from("product_images").select("id", { count: "exact", head: true }).eq("product_id", productId);
-  const { error } = await auth.supabase.from("product_images").insert({ product_id: productId, storage_path: media.storagePath, image_url: media.imageUrl, alt_text, display_order: priorCount ?? 0, is_primary: (priorCount ?? 0) === 0 });
+  const { error } = await auth.supabase.from("product_images").insert({ product_id: productId, storage_path: media.storagePath, image_url: media.imageUrl, alt_text, display_order: priorCount ?? 0, is_primary: primaryUpload || (priorCount ?? 0) === 0 });
   if (error) {
     await removeMediaFile(media.storagePath);
     return { error: "Image metadata could not be saved." };

@@ -282,3 +282,10 @@ The storefront code now treats Supabase as authoritative: an empty published cat
 Migration `202611250002_staff_removal_audit.sql` adds an audit actor email snapshot and an owner-only, self/last-owner-guarded removal audit function. Owner removal uses server-side Supabase Auth Admin deletion and retains catalogue history. The linked project reference was checked against `gsfphkotxfkwcsetsbvu` before migration dry-run and push; no staff invitations or account removals were sent during implementation.
 
 This document is the planning baseline for the Home Finds admin application. It does not authorise live payment automation or assume unresolved prices, stock, delivery, or catalogue combinations.
+
+### Listing editor update (2026-11-25)
+
+- Details asks for category, one frame design, one colour, description, what is included, material, care, and delivery information. The chosen design supplies the internal listing name; staff do not enter a separate product name or SKU. Existing listing slugs remain stable.
+- Saving Details creates the initial design and colour image set as a draft. Changing a published design or colour requires unpublishing first. A changed image set requires a fresh visual match check.
+- Images presents the primary listing photo, frame-only photo, and dressed photo together for the first design and colour. Additional matched image sets and optional gallery photos sit in separate expandable sections.
+- The managed storefront reads the saved product details. Empty optional fields retain the existing customer-facing fallback text. All beds continue to use the single shared size price list.

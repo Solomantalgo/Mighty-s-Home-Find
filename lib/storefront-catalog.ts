@@ -18,7 +18,7 @@ export async function getStorefrontCatalog() {
   if (!supabase) return { products: sampleProducts, categories: sampleCategories, managed: false };
   const [{ data: categoryRows, error: categoryError }, { data: productRows, error: productError }, { data: options }] = await Promise.all([
     supabase.from("categories").select("id,name,slug,description,display_order").eq("is_published", true).order("display_order"),
-    supabase.from("products").select("id,name,slug,model_name,short_description,description,category_id,categories(name,slug)").eq("status", "published").order("updated_at", { ascending: false }),
+    supabase.from("products").select("id,name,slug,model_name,short_description,description,material,care,included,delivery_note,category_id,categories(name,slug)").eq("status", "published").order("updated_at", { ascending: false }),
     supabase.from("catalogue_options").select("managed_catalogue_live").eq("id", 1).maybeSingle(),
   ]);
   if (categoryError || productError || !categoryRows || !productRows) throw new Error("The managed catalogue is temporarily unavailable.");
@@ -64,7 +64,7 @@ export async function getStorefrontCatalog() {
     const defaultVariant = saleVariants[0];
     const finish = sampleFinish(defaultVariant.colour);
     const modelName = row.model_name || row.name;
-    return [{ id: row.id, slug: row.slug, name: row.name, shortName: modelName, category: category.name, categorySlug: category.slug, rating: "", reviews: 0, description: row.description || row.short_description || row.name, frame: defaultVariant.frameImage, dressed: defaultVariant.dressedImage, image: primary.image_url, configuratorDesign: row.id, defaultImageSize: key(defaultVariant.size), previewSizes: sizes, colorName: finish.name, finishes, delivery: "Contact us to confirm delivery", included: row.short_description || "See the listing details for product information.", material: "Contact us for material details.", care: "Contact us for care guidance.", alt: primary.alt_text || row.name, managed: true, saleVariants }];
+    return [{ id: row.id, slug: row.slug, name: row.name, shortName: modelName, category: category.name, categorySlug: category.slug, rating: "", reviews: 0, description: row.description || row.short_description || row.name, frame: defaultVariant.frameImage, dressed: defaultVariant.dressedImage, image: primary.image_url, configuratorDesign: row.id, defaultImageSize: key(defaultVariant.size), previewSizes: sizes, colorName: finish.name, finishes, delivery: row.delivery_note || "Contact us to confirm delivery", included: row.included || row.short_description || "See the listing details for product information.", material: row.material || "Contact us for material details.", care: row.care || "Contact us for care guidance.", alt: primary.alt_text || row.name, managed: true, saleVariants }];
   });
   if (!resolvedProducts.length) return { products: [], categories: [], managed: true };
   const visibleCategories = resolvedCategories.flatMap((category) => {
