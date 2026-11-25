@@ -35,7 +35,7 @@ import { getCatalogVariantImage, type FinishId } from "@/lib/bed-color-variants"
 
 type ViewMode = "compare" | "frame" | "dressed";
 const categoryHasModel = (
-  category: (typeof categories)[number],
+  category: { modelIds: readonly string[] },
   productId: string,
 ) => (category.modelIds as readonly string[]).includes(productId);
 
@@ -43,16 +43,24 @@ export function ProductExperience({
   product: initialProduct,
   backHref,
   categorySlug,
+  catalogProducts = products,
+  catalogCategories = categories,
+  sharedSizes = bedMeasurements,
 }: {
   product: BedProduct;
   backHref: string;
   categorySlug: string;
+  catalogProducts?: BedProduct[];
+  catalogCategories?: { slug: string; name: string; chipLabel: string; modelHeading: string; image: string; alternateImage: string; alt: string; concept: boolean; href: string; modelIds: string[]; defaultProductId: string }[];
+  sharedSizes?: readonly { id: string; label: string; price: number }[];
 }) {
+  const productList = catalogProducts;
+  const categoryList = catalogCategories;
   const { addItem } = useCart();
   const [productId, setProductId] = useState(initialProduct.id);
   const [activeCategorySlug, setActiveCategorySlug] = useState(categorySlug);
   const [categoryUnavailable, setCategoryUnavailable] = useState(() => {
-    const initialCategory = categories.find(
+    const initialCategory = categoryList.find(
       (item) => item.slug === categorySlug,
     );
     return Boolean(
@@ -60,15 +68,15 @@ export function ProductExperience({
     );
   });
   const product =
-    products.find((item) => item.id === productId) ?? initialProduct;
+    productList.find((item) => item.id === productId) ?? initialProduct;
   const activeCategory =
-    categories.find((item) => item.slug === activeCategorySlug) ??
-    categories.find((item) => item.slug === product.categorySlug) ??
-    categories[0];
+    categoryList.find((item) => item.slug === activeCategorySlug) ??
+    categoryList.find((item) => item.slug === product.categorySlug) ??
+    categoryList[0];
   const initialFinishId =
     initialProduct.finishes.find((item) => item.name === initialProduct.colorName)?.id ??
     initialProduct.previewSizes[0].finishes[0];
-  const [finishId, setFinishId] = useState<FinishId>(initialFinishId);
+  const [finishId, setFinishId] = useState<string>(initialFinishId);
   const [imageSizeId, setImageSizeId] = useState(initialProduct.defaultImageSize);
   const [selectedMeasurement, setSelectedMeasurement] =
     useState<BedMeasurementId>(DEFAULT_BED_MEASUREMENT);
@@ -80,23 +88,24 @@ export function ProductExperience({
   const finish: Finish =
     product.finishes.find((item) => item.id === finishId) ??
     product.finishes[0];
-  const frameImage = getCatalogVariantImage(
+  const activeSaleVariant = product.saleVariants?.find((variant) => variant.size.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") === imageSizeId && variant.colour.toLowerCase() === finish.name.toLowerCase()) ?? product.saleVariants?.find((variant) => variant.size.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") === imageSizeId) ?? product.saleVariants?.[0];
+  const frameImage = activeSaleVariant?.frameImage ?? getCatalogVariantImage(
     product.configuratorDesign,
     imageSizeId,
-    finish.id,
+    finish.id as FinishId,
     "frame",
   );
-  const dressedImage = getCatalogVariantImage(
+  const dressedImage = activeSaleVariant?.dressedImage ?? getCatalogVariantImage(
     product.configuratorDesign,
     imageSizeId,
-    finish.id,
+    finish.id as FinishId,
     "dressed",
   );
   const modelChoices = activeCategory.modelIds
-    .map((id) => products.find((item) => item.id === id))
+    .map((id) => productList.find((item) => item.id === id))
     .filter((item): item is BedProduct => Boolean(item));
   const relatedModels = modelChoices.filter((item) => item.id !== product.id);
-  const unitPrice = bedMeasurementPrice(selectedMeasurement);
+  const unitPrice = sharedSizes.find((size) => size.id === selectedMeasurement)?.price ?? bedMeasurementPrice(selectedMeasurement);
   const imageSizes = product.previewSizes;
   const availableFinishes = imageSizes.find((size) => size.id === imageSizeId)?.finishes ?? [];
   const total = unitPrice * quantity;
@@ -119,9 +128,9 @@ export function ProductExperience({
     setSplit(49);
   }
   function selectCategory(slug: string) {
-    const category = categories.find((item) => item.slug === slug);
+    const category = categoryList.find((item) => item.slug === slug);
     if (!category) return;
-    const next = products.find((item) => item.id === category.defaultProductId);
+    const next = productList.find((item) => item.id === category.defaultProductId);
     if (next && categoryHasModel(category, next.id)) {
       selectModel(next, category.slug);
       return;
@@ -137,11 +146,21 @@ export function ProductExperience({
       measurement: selectedMeasurement,
       finishId: finish.id,
       quantity,
+      productName: product.name,
+      productSlug: product.slug,
+      image: product.image,
+      alt: product.alt,
+      finishName: finish.name,
+      sizeLabel: sharedSizes.find((item) => item.id === selectedMeasurement)?.label ?? "Bed",
+      unitPrice,
+      frameImage,
+      dressedImage,
+      sku: activeSaleVariant?.sku,
     });
   }
   return (
     <>
-      <SiteHeader />
+      <SiteHeader categories={categoryList as typeof categories} />
       <main className="product-page">
         <div className="product-crumb">
           <Link href={backHref}>
@@ -150,7 +169,7 @@ export function ProductExperience({
           <nav aria-label="Breadcrumb">
             <Link href="/">Home</Link>
             <span>/</span>
-            <Link href="/products/classic-spindle?category=king-beds">
+            <Link href={productList[0] ? `/products/${productList[0].slug}?category=${productList[0].categorySlug}` : "/#shop"}>
               Shop Beds
             </Link>
             <span>/</span>
@@ -175,7 +194,7 @@ export function ProductExperience({
               role="group"
               aria-label="Bed category"
             >
-              {categories.map((category) => (
+              {categoryList.map((category) => (
                 <button
                   type="button"
                   className={
@@ -414,7 +433,7 @@ export function ProductExperience({
               <div>
                 <h2>{product.name}</h2>
                 <div className="sample-price">
-                  {formatUGX(unitPrice)} <span>sample price</span>
+                  {formatUGX(unitPrice)} {!product.managed && <span>sample price</span>}
                 </div>
               </div>
               <button
@@ -427,15 +446,15 @@ export function ProductExperience({
                 <Heart fill={wishlisted ? "currentColor" : "none"} />
               </button>
             </div>
-            <div className="detail-rating">
+            {!product.managed && <div className="detail-rating">
               <span>★</span>
               <b>{product.rating}</b>
               <small>({product.reviews} sample reviews)</small>
-            </div>
+            </div>}
             <div className="size-choice">
-              <span>Choose measurement</span>
+              <span>Choose bed size</span>
               <div>
-                {bedMeasurements.map((measurement) => (
+                {sharedSizes.map((measurement) => (
                   <button
                     key={measurement.id}
                     onClick={() => setSelectedMeasurement(measurement.id)}
@@ -454,7 +473,7 @@ export function ProductExperience({
               <Truck size={18} />
               <span>
                 <b>{product.delivery}</b>
-                <small>Sample delivery estimate</small>
+                <small>{product.managed ? "Contact us to confirm" : "Sample delivery estimate"}</small>
               </span>
             </div>
             <div className="order-row">
@@ -480,7 +499,7 @@ export function ProductExperience({
             </div>
             <a
               className="whatsapp-order"
-              href={`https://wa.me/?text=${encodeURIComponent(`Hello HomeFinds, I'd like to ask about the ${product.name}, ${bedMeasurements.find((item) => item.id === selectedMeasurement)?.label}, in ${finish.name}.`)}`}
+              href={`https://wa.me/?text=${encodeURIComponent(`Hello HomeFinds, I'd like to ask about the ${product.name}, ${sharedSizes.find((item) => item.id === selectedMeasurement)?.label ?? selectedMeasurement}, in ${finish.name}.`)}`}
               target="_blank"
               rel="noreferrer"
             >
@@ -490,10 +509,10 @@ export function ProductExperience({
               <PackageCheck size={17} />
               <p>{product.included}</p>
             </div>
-            <div className="sample-detail-foot">
+            {!product.managed && <div className="sample-detail-foot">
               <span>Illustrative sample information</span>
               <span>{product.material}</span>
-            </div>
+            </div>}
           </aside>
         </section>
         <section className="detail-benefits">
@@ -528,7 +547,7 @@ export function ProductExperience({
         {relatedModels.length > 0 && <section className="related-section">
           <div className="section-title">
             <h2>More Metallic Beds</h2>
-            <Link href="/products/classic-spindle?category=king-beds">
+            <Link href={productList[0] ? `/products/${productList[0].slug}?category=${productList[0].categorySlug}` : "/#shop"}>
               Explore beds <ArrowRight size={14} />
             </Link>
           </div>
@@ -539,7 +558,7 @@ export function ProductExperience({
                   onClick={() =>
                     selectModel(
                       item,
-                      categories.find(
+                      categoryList.find(
                         (category) =>
                           category.name === item.category,
                       )?.slug,
@@ -560,7 +579,7 @@ export function ProductExperience({
               ))}
           </div>
         </section>}
-        <section className="review-card">
+        {!product.managed && <section className="review-card">
           <div className="review-quote-mark">“</div>
           <div className="review-copy">
             <p>“{sampleReview.quote}”</p>
@@ -573,11 +592,11 @@ export function ProductExperience({
             <span>H</span>
             <small>HomeFinds</small>
           </div>
-        </section>
-        <div className="product-disclosure">
+        </section>}
+        {!product.managed && <div className="product-disclosure">
           Sample prices, ratings, finish previews and delivery information are
           illustrative.
-        </div>
+        </div>}
           </>
         )}
       </main>

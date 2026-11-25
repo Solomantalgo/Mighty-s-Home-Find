@@ -1,7 +1,7 @@
 import { catalogDesigns, getCatalogVariantImage, type FinishId } from "@/lib/bed-color-variants";
 
-export type Finish = { id: FinishId; name: string; hex: string };
-export type BedImageSize = { id: string; label: string; finishes: FinishId[] };
+export type Finish = { id: string; name: string; hex: string };
+export type BedImageSize = { id: string; label: string; finishes: string[] };
 export type BedProduct = {
   id: string;
   slug: string;
@@ -25,6 +25,8 @@ export type BedProduct = {
   material: string;
   care: string;
   alt: string;
+  managed?: boolean;
+  saleVariants?: { id: string; design: string; size: string; colour: string; sku: string; frameImage: string; dressedImage: string }[];
 };
 
 export const bedMeasurements = [
@@ -32,7 +34,7 @@ export const bedMeasurements = [
   { id: "5x6", label: "5\u00D76", price: 700000 },
   { id: "6x6", label: "6\u00D76", price: 800000 },
 ] as const;
-export type BedMeasurementId = (typeof bedMeasurements)[number]["id"];
+export type BedMeasurementId = string;
 export const DEFAULT_BED_MEASUREMENT: BedMeasurementId = "5x6";
 export const bedMeasurementPrice = (id: BedMeasurementId) =>
   bedMeasurements.find((item) => item.id === id)?.price ?? bedMeasurements[1].price;
@@ -61,7 +63,7 @@ const sizeLabel = (value: string) => value.split("-").map((part) => part.replace
 
 export const products: BedProduct[] = catalogDesigns.map((design) => {
   const category = categoryDefinitions.find((item) => item.slug === design.category)!;
-  const imageSizes: BedImageSize[] = design.imageSizes.map((id) => ({
+  const imageSizes = design.imageSizes.map((id) => ({
     id,
     label: sizeLabel(id),
     finishes: design.pairs.filter((pair) => pair.imageSize === id).map((pair) => pair.finish),

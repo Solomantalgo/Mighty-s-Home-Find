@@ -40,3 +40,57 @@ The deployment preserves server `node_modules`. If `package.json` or `package-lo
 ## Current product limitations
 
 The site remains a storefront prototype. Deployment does not add a database, live inventory, authentication, payment processing, or an operational order service. The manual MoMo flow must not be represented as automatic payment verification. Confirm the receiving number and support contact before taking real payments.
+
+## Supabase catalogue admin
+
+The admin dashboard uses Supabase Auth and PostgreSQL for staff access and catalogue records. Product and configurator image files are stored on cPanel, not Supabase Storage. In cPanel **Setup Node.js App → Environment variables**, set `HOMEFINDS_MEDIA_DIR=/home2/mightyhomefinds/homefinds-media`, then restart Passenger. This folder is outside the deployed app checkout, so GitHub deployments do not replace uploaded files. Production uploads now fail closed if the variable is missing, relative, or inside the checkout. Confirm the app user can create and write the directory, read uploaded files through `/media/...`, and that the hosting backup includes this directory; those host checks have not been completed in this workspace. Local development uses the git-ignored `.local-media/` folder. Existing bundled assets remain in `public/assets/` until their managed replacements are ready.
+
+Configure Supabase Auth and PostgreSQL credentials for staff access and catalogue records; product images are stored on cPanel as described above. Configure `SUPABASE_URL` and `SUPABASE_ANON_KEY` (publishable/anon key only) as cPanel runtime variables. Staff invitations and Auth Admin operations also require `SUPABASE_SECRET_KEY`, the current Supabase server-only secret key (`sb_secret_…`). The app accepts the legacy `SUPABASE_SERVICE_ROLE_KEY` name as a fallback during migration. Keep either key server-only: never add it to browser code, a `NEXT_PUBLIC_` variable, GitHub Actions, or a committed file. The staff screen is owner-only. There is no public sign-up route.
+
+The Home Finds Supabase project is currently named `solomon.billionairesurge@gmail.com's Project` in the `HomeFind's` organization, region `eu-west-2`, project ref `gsfphkotxfkwcsetsbvu` (`https://gsfphkotxfkwcsetsbvu.supabase.co`). The catalogue migration `202611240001_catalogue_admin.sql` has been applied to this project. The generated project ref is not a secret; the CLI's local link is ignored and must be recreated on another workstation.
+
+### Storefront catalogue source
+
+The storefront uses published Supabase products when there is a valid published catalogue; otherwise, the generated visual prototype remains as a fallback. Product and category edits in Admin are saved to Supabase. Migration `202611250001_import_storefront_drafts.sql` imports the six prototype categories and eleven existing bed designs with one current image each as editable drafts. Their sample prices and product claims are illustrative, so the import does not create sale variants or publish products. Review each design, add confirmed prices and matched frame/dressed images, then publish it. Once managed products are published, the storefront switches to those records. The additional generated size/finish image combinations remain in the prototype asset index until mapped to managed variants.
+
+### Supabase database migrations
+
+Schema changes are version-controlled under `supabase/migrations/` and deployed with the Supabase CLI. Do not make schema changes to the hosted project in the SQL/Table Editor; doing so bypasses migration history and can make later pushes fail. The repository includes `supabase/config.toml`; the local Supabase CLI link is intentionally not committed.
+
+1. Install/use Supabase CLI v3.3 or later and authenticate with `npx supabase login` (the access token is stored by the CLI, not in the repository).
+2. Link this checkout to the confirmed project with `npx supabase link --project-ref gsfphkotxfkwcsetsbvu`.
+3. Review the target and pending migration list with `npx supabase migration list --remote`, then preview pending SQL with `npx supabase db push --dry-run --remote`.
+4. After confirming the target project and preview, apply with `npx supabase db push --remote`. The CLI asks for confirmation. Do not use `--yes` for production unless the operator explicitly intends to apply the listed changes.
+
+For each future schema change, add a new timestamped SQL migration (for example, `npx supabase migration new add_variant_dimensions`), review it, and push it through this workflow. Never edit a migration that has already been applied to a shared/production project; add a new migration instead. Agents may prepare and review migration files, but must not push schema changes to production without explicit authorization for that push. The existing catalogue migration also creates a legacy Supabase Storage bucket, but new admin uploads use the cPanel media folder. Confirm project backup/retention settings before uploading production assets.
+
+The catalogue migration is applied, but the production cPanel runtime still needs `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and the settings below. Do not deploy expecting staff invitations to work until the migration and project configuration are complete.
+
+### Staff invitations and owner setup
+
+1. Apply and review `202611240002_staff_management.sql` with the migration workflow above. It adds staff status/email fields, owner-only staff RLS, an active-accepted staff authorization gate, audit events, and database protection against removing the last active owner. It will stop if an existing staff profile has no matching Auth email; resolve that account before retrying.
+2. In cPanel **Setup Node.js App → Environment variables**, add:
+   - `SUPABASE_SECRET_KEY`: create/reveal the project’s secret key (`sb_secret_…`) in Supabase **Project Settings → API Keys**. This is read only in server modules for Auth Admin operations. Do not copy its value into source control, a `NEXT_PUBLIC_` variable, a GitHub secret, or a client component. Restart the Passenger application after saving.
+   - `HOMEFINDS_SITE_URL=https://mightyhomefinds.com` (use the canonical HTTPS storefront origin).
+3. In Supabase **Authentication → URL Configuration**, set the site URL to `https://mightyhomefinds.com` and allow `https://mightyhomefinds.com/admin/invite/accept` as a redirect URL.
+4. In **Authentication → Email Templates → Invite user**, set the link to the SSR confirmation route so the token is verified and stored in the staff member’s session cookie. For example:
+
+   ```html
+   <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite&next=/admin/invite/accept">Accept invitation</a>
+   ```
+
+   Confirm the project’s email sender, invite template, and expiry settings before sending live invitations. Do not use a template that exposes the service-role secret or sends the raw token to application logs.
+5. Provision the first owner. First create the owner’s Auth user in Supabase **Authentication → Users → Add user** with an email and a temporary password, then open **SQL Editor** and run the following after replacing the two example values. This inserts catalogue access for that existing Auth user; it does not create a password or send an invitation:
+
+   ```sql
+   insert into public.staff_profiles (user_id, email, display_name, role, is_active, invitation_status)
+   select id, email, 'Home Finds Owner', 'owner', true, 'accepted'
+   from auth.users
+   where lower(email) = lower('owner@example.com')
+   on conflict (user_id) do nothing;
+   ```
+
+   Check that exactly one profile was added and sign in at `/admin/login`. Keep at least two active accepted owners before deactivating or demoting an owner. Database triggers reject removal of the final active owner, including a self-change.
+6. Owners can invite `owner` or `catalogue_admin` staff at `/admin/staff`. New staff set their password through the email invitation. Revoke blocks the pending Auth user and records a revoked status. Resend rotates the pending Auth user and sends a fresh invitation link; this invalidates the old link. Role changes, deactivation, invites, revokes and resends are recorded in the existing catalogue audit log.
+
+The migration is prepared locally and must be reviewed/applied by an authorized operator using the CLI workflow above. No invitation email or production staff account was changed while implementing these changes.

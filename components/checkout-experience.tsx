@@ -23,16 +23,19 @@ import {
   products,
 } from "@/lib/sample-data";
 import { getCatalogVariantImage } from "@/lib/bed-color-variants";
+import type { FinishId } from "@/lib/bed-color-variants";
 
 type OrderState = { reference: string; paymentId: string; payerPhone: string };
 
 export function CheckoutExperience({
   initialItem,
+  sharedSizes = bedMeasurements,
   receivingNumber,
   supportContact,
   ussdCode,
 }: {
   initialItem: CartItem | null;
+  sharedSizes?: readonly { id: string; label: string; price: number }[];
   receivingNumber: string;
   supportContact: string;
   ussdCode: string;
@@ -41,11 +44,12 @@ export function CheckoutExperience({
   const sourceItems = !cart.ready ? [] : cart.items.length > 0 ? cart.items : initialItem ? [initialItem] : [];
   const checkoutItems = sourceItems.flatMap((item) => {
     const product = products.find((entry) => entry.id === item.productId);
-    const finish = product?.finishes.find((entry) => entry.id === item.finishId);
-    const measurement = bedMeasurements.find((entry) => entry.id === item.measurement);
-    if (!product || !finish || !measurement) return [];
-    const lineTotal = bedMeasurementPrice(item.measurement) * item.quantity;
-    return [{ item, product, finish, measurement, lineTotal }];
+    const finish = product?.finishes.find((entry) => entry.id === item.finishId) ?? (item.finishName ? { id: item.finishId, name: item.finishName, hex: "#555" } : undefined);
+    const measurement = sharedSizes.find((entry) => entry.id === item.measurement) ?? (item.sizeLabel ? { id: item.measurement, label: item.sizeLabel, price: item.unitPrice ?? 0 } : undefined);
+    const resolvedProduct = product ?? (item.productName && item.productSlug ? { id: item.productId, slug: item.productSlug, name: item.productName, shortName: item.productName, category: "", categorySlug: "", rating: "", reviews: 0, description: "", frame: item.frameImage ?? item.dressedImage ?? "", dressed: item.dressedImage ?? "", image: item.image ?? "", configuratorDesign: "", defaultImageSize: item.imageSizeId, previewSizes: [], colorName: item.finishName ?? "", finishes: finish ? [finish] : [], delivery: "", included: "", material: "", care: "", alt: item.alt ?? item.productName } : undefined);
+    if (!resolvedProduct || !finish || !measurement) return [];
+    const lineTotal = (measurement.price || item.unitPrice || bedMeasurementPrice(item.measurement)) * item.quantity;
+    return [{ item, product: resolvedProduct, finish, measurement, lineTotal }];
   });
   const firstProduct = checkoutItems[0]?.product;
   const [copied, setCopied] = useState("");
@@ -134,7 +138,7 @@ export function CheckoutExperience({
           <section className="checkout-main-card checkout-empty-state">
             <h2>Your bag is empty</h2>
             <p>Add a bed design before continuing to checkout.</p>
-            <Link className="checkout-primary" href="/products/classic-spindle?category=king-beds">Browse bed designs</Link>
+            <Link className="checkout-primary" href="/#shop">Browse bed designs</Link>
           </section>
         ) : (
           <div className="checkout-grid">
@@ -150,7 +154,7 @@ export function CheckoutExperience({
                 <div className="checkout-item" key={item.key}>
                   <div className="checkout-item-image">
                     <Image
-                      src={getCatalogVariantImage(product.configuratorDesign, item.imageSizeId, finish.id, "dressed")}
+                      src={item.dressedImage ?? getCatalogVariantImage(product.configuratorDesign, item.imageSizeId, finish.id as FinishId, "dressed")}
                       alt={`${product.shortName} bed in ${finish.name}`}
                       fill
                       sizes="100px"
@@ -159,7 +163,7 @@ export function CheckoutExperience({
                   <div className="checkout-item-info">
                     <b>{product.name}</b>
                     <small>{measurement.label} &middot; {finish.name} finish</small>
-                    <small>Image concept: {product.previewSizes.find((size) => size.id === item.imageSizeId)?.label}</small>
+                    {!item.productName && <small>Image concept: {product.previewSizes.find((size) => size.id === item.imageSizeId)?.label}</small>}
                     <small>Quantity: {item.quantity}</small>
                   </div>
                   <strong>{formatUGX(lineTotal)}</strong>
@@ -178,9 +182,7 @@ export function CheckoutExperience({
                   <span>Exact total due</span>
                   <strong>{formatUGX(total)}</strong>
                 </div>
-                <small>
-                  Illustrative sample amount for this visual prototype.
-                </small>
+                {checkoutItems.some(({ item }) => !item.productName) && <small>Illustrative sample amount for this visual prototype.</small>}
               </div>
               <div className="checkout-section-title payment-title">
                 <span>2</span>

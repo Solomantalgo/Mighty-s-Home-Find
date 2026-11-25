@@ -19,11 +19,14 @@ import {
   formatUGX,
   products,
   bedMeasurements,
+  type BedProduct,
 } from "@/lib/sample-data";
+
+type HomeCategory = { slug: string; name: string; chipLabel: string; modelHeading: string; image: string; alternateImage: string; alt: string; concept: boolean; href: string; modelIds: string[]; defaultProductId: string };
 
 const icons = [Truck, ShieldCheck, Tag, Headset];
 
-export default function HomePage() {
+export default function HomePage({ products: productItems = products, categories: categoryItems = categories, managed = false, sharedSizes = bedMeasurements }: { products?: BedProduct[]; categories?: HomeCategory[]; managed?: boolean; sharedSizes?: readonly { id: string; label: string; price: number }[] }) {
   const [wishlisted, setWishlisted] = useState<string[]>([]);
   function toggleWish(id: string) {
     setWishlisted((old) =>
@@ -33,7 +36,7 @@ export default function HomePage() {
 
   return (
     <>
-      <SiteHeader />
+      <SiteHeader categories={categoryItems as typeof categories} />
       <main>
         <section className="home-hero">
           <Image
@@ -62,7 +65,7 @@ export default function HomePage() {
             <div className="hero-buttons">
               <Link
                 className="button gold-button"
-                href="/products/classic-spindle?category=king-beds"
+                href={productItems[0] ? `/products/${productItems[0].slug}?category=${productItems[0].categorySlug}` : "#shop"}
               >
                 Shop Beds <ArrowRight size={17} />
               </Link>
@@ -99,7 +102,7 @@ export default function HomePage() {
             </Link>
           </div>
           <div className="category-list">
-            {categories.map((category) => (
+            {categoryItems.map((category) => (
               <Link
                 className="category-tile"
                 key={category.name}
@@ -136,13 +139,14 @@ export default function HomePage() {
         <section className="content-section featured-section" id="products">
           <div className="section-title">
             <h2>Featured Beds</h2>
-            <Link href="/products/classic-spindle?category=king-beds">
+            <Link href={productItems[0] ? `/products/${productItems[0].slug}?category=${categoryItems.find((category) => category.slug === productItems[0].categorySlug)?.slug ?? ""}` : "#shop"}>
               View All <ArrowRight size={14} />
             </Link>
           </div>
           <div className="featured-row">
-            {products.map((product) => {
-              const category = categories.find(
+            {productItems.length === 0 && <p role="status">The bed catalogue is being updated. Please contact us for current designs and availability.</p>}
+            {productItems.map((product) => {
+              const category = categoryItems.find(
                 (item) => item.name === product.category,
               );
               const href = `/products/${product.slug}?category=${category?.slug ?? "king-beds"}`;
@@ -155,7 +159,7 @@ export default function HomePage() {
                       fill
                       sizes="(max-width: 650px) 44vw, 240px"
                     />
-                    <span className="sample-pill">Sample</span>
+                    {!managed && <span className="sample-pill">Sample</span>}
                   </Link>
                   <button
                     className={`wishlist-button ${wishlisted.includes(product.id) ? "liked" : ""}`}
@@ -179,11 +183,11 @@ export default function HomePage() {
                     <Link href={href}>
                       <h3>{product.name}</h3>
                     </Link>
-                    <strong>From {formatUGX(bedMeasurements[0].price)}</strong>
-                    <span className="rating">
+                    <strong>{`From ${formatUGX(Math.min(...sharedSizes.map((size) => size.price)))}`}</strong>
+                    {!managed && <span className="rating">
                       <b>&#9733;</b> {product.rating}{" "}
                       <small>({product.reviews})</small>
-                    </span>
+                    </span>}
                     <Link className="add-button" href={href}>
                       Choose options <ArrowRight size={15} />
                     </Link>
@@ -219,10 +223,10 @@ export default function HomePage() {
             </Link>
           </div>
         </section>
-        <div className="prototype-note">
+        {!managed && <div className="prototype-note">
           Visual prototype &middot; Sample prices, ratings and delivery details are
           illustrative.
-        </div>
+        </div>}
       </main>
       <footer className="site-footer">
         <Link href="/">Home Finds</Link>

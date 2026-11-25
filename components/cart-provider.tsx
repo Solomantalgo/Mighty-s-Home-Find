@@ -26,12 +26,23 @@ export type CartItem = {
   productId: string;
   imageSizeId: string;
   measurement: BedMeasurementId;
-  finishId: FinishId;
+  finishId: string;
   quantity: number;
+  productName?: string;
+  productSlug?: string;
+  image?: string;
+  alt?: string;
+  finishName?: string;
+  sizeLabel?: string;
+  unitPrice?: number;
+  frameImage?: string;
+  dressedImage?: string;
+  sku?: string;
 };
 
 type CartContextValue = {
   items: CartItem[];
+  sharedSizes: readonly { id: string; label: string; price: number }[];
   count: number;
   subtotal: number;
   ready: boolean;
@@ -49,9 +60,9 @@ const CartContext = createContext<CartContextValue | null>(null);
 const STORAGE_KEY = "homefinds-cart-v1";
 
 function makeCartKey(
-  item: Pick<CartItem, "productId" | "imageSizeId" | "measurement" | "finishId">,
+  item: Pick<CartItem, "productId" | "imageSizeId" | "measurement" | "finishId" | "sku">,
 ) {
-  return `${item.productId}:${item.imageSizeId}:${item.measurement}:${item.finishId}`;
+  return `${item.productId}:${item.sku ?? item.imageSizeId}:${item.imageSizeId}:${item.measurement}:${item.finishId}`;
 }
 
 export function useCart() {
@@ -62,9 +73,20 @@ export function useCart() {
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [sharedSizes, setSharedSizes] = useState<readonly { id: string; label: string; price: number }[]>(bedMeasurements);
   const [isOpen, setIsOpen] = useState(false);
   const [confirmation, setConfirmation] = useState("");
   const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/catalogue-options", { signal: controller.signal, cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data: { sizes?: { id: string; label: string; price: number }[] } | null) => {
+        if (Array.isArray(data?.sizes) && data.sizes.length) setSharedSizes(data.sizes);
+      }).catch(() => {});
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     const restoreTimer = window.setTimeout(() => {
@@ -74,6 +96,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           const parsed = JSON.parse(raw) as CartItem[];
           if (Array.isArray(parsed)) {
             setItems(parsed.flatMap((item) => {
+              if (item.productName && Number.isSafeInteger(item.unitPrice) && Number(item.unitPrice) > 0 && item.image && item.dressedImage && Number.isInteger(item.quantity) && item.quantity > 0) {
+                const normalized = { ...item, imageSizeId: item.imageSizeId || item.sizeLabel || "configured", key: "" };
+                return [{ ...normalized, key: makeCartKey(normalized), quantity: Math.min(20, item.quantity) }];
+              }
               const product = products.find((entry) => entry.id === item.productId);
               const validMeasurement = bedMeasurements.some((measurement) => measurement.id === item.measurement);
               const validFinish = product?.finishes.some((finish) => finish.id === item.finishId);
@@ -99,7 +125,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const addItem = useCallback((item: Omit<CartItem, "key">) => {
     const key = makeCartKey(item);
-    const productName = products.find((product) => product.id === item.productId)?.shortName ?? "Bed";
+    const productName = item.productName ?? products.find((product) => product.id === item.productId)?.shortName ?? "Bed";
     setItems((current) => {
       const existing = current.find((entry) => entry.key === key);
       return existing
@@ -108,7 +134,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
               ? { ...entry, quantity: Math.min(20, entry.quantity + item.quantity) }
               : entry,
           )
-        : [...current, { ...item, key }];
+        : [...current, { ...item, productName, key }];
     });
     setConfirmation(`${productName} added to your bag.`);
     setIsOpen(true);
@@ -140,12 +166,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const clearCart = useCallback(() => setItems([]), []);
   const count = items.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = items.reduce(
-    (sum, item) => sum + bedMeasurementPrice(item.measurement) * item.quantity,
+    (sum, item) => sum + (sharedSizes.find((size) => size.id === item.measurement)?.price ?? item.unitPrice ?? bedMeasurementPrice(item.measurement)) * item.quantity,
     0,
   );
   const value = useMemo(
     () => ({
       items,
+      sharedSizes,
       count,
       subtotal,
       ready,
@@ -160,6 +187,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       items,
+      sharedSizes,
       count,
       subtotal,
       ready,
@@ -185,6 +213,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 function CartDrawer() {
   const {
     items,
+    sharedSizes,
     count,
     subtotal,
     isOpen,
@@ -263,37 +292,37 @@ function CartDrawer() {
                 const finish = product?.finishes.find(
                   (entry) => entry.id === item.finishId,
                 );
-                const measurement = bedMeasurements.find(
+                const measurement = sharedSizes.find(
                   (entry) => entry.id === item.measurement,
                 );
-                if (!product || !finish || !measurement) return null;
-                const unitPrice = bedMeasurementPrice(item.measurement);
+                if ((!product || !finish || !measurement) && !(item.productName && item.dressedImage && item.unitPrice)) return null;
+                const productName = item.productName ?? product!.name;
+                const shortName = item.productName ?? product!.shortName;
+                const finishName = item.finishName ?? finish!.name;
+                const measurementLabel = item.sizeLabel ?? measurement!.label;
+                const image = item.dressedImage ?? getCatalogVariantImage(product!.configuratorDesign, item.imageSizeId, finish!.id as FinishId, "dressed");
+                const unitPrice = measurement?.price ?? item.unitPrice ?? bedMeasurementPrice(item.measurement);
                 return (
                   <article className="cart-drawer-item" key={item.key}>
                     <div className="cart-drawer-image">
                       <Image
-                        src={getCatalogVariantImage(
-                          product.configuratorDesign,
-                          item.imageSizeId,
-                          finish.id,
-                          "dressed",
-                        )}
-                        alt={`${product.alt}, ${finish.name}`}
+                        src={image}
+                        alt={item.alt ?? `${productName}, ${finishName}`}
                         fill
                         sizes="110px"
                       />
                     </div>
                     <div className="cart-drawer-item-copy">
-                      <h3>{product.name}</h3>
+                      <h3>{productName}</h3>
                       <p>
-                        {finish.name} <span>·</span> {measurement.label}
+                        {finishName} <span>·</span> {measurementLabel}
                       </p>
-                      <p>Image concept: {product.previewSizes.find((size) => size.id === item.imageSizeId)?.label}</p>
+                      {!item.productName && <p>Image concept: {product?.previewSizes.find((size) => size.id === item.imageSizeId)?.label}</p>}
                       <strong>{formatUGX(unitPrice)}</strong>
                       <div className="cart-line-controls">
                         <div
                           className="cart-quantity"
-                          aria-label={`Quantity for ${product.shortName}, ${measurement.label}, ${finish.name}`}
+                          aria-label={`Quantity for ${shortName}, ${measurementLabel}, ${finishName}`}
                         >
                           <button
                             type="button"

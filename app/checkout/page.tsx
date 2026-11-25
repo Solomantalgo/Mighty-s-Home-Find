@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { CheckoutExperience } from "@/components/checkout-experience";
 import { checkoutConfig } from "@/lib/checkout-config";
-import { bedMeasurements, products, type BedMeasurementId } from "@/lib/sample-data";
+import { products, type BedMeasurementId } from "@/lib/sample-data";
 import type { CartItem } from "@/components/cart-provider";
+import { getCatalogueOptions } from "@/lib/catalogue-options";
 
 export const metadata: Metadata = {
   title: "Checkout | HomeFinds",
@@ -22,8 +23,9 @@ export default async function CheckoutPage({
   }>;
 }) {
   const params = await searchParams;
+  const options = await getCatalogueOptions();
   const product = products.find((item) => item.slug === params.product);
-  const measurement = bedMeasurements.some(
+  const measurement = options.sizes.some(
     (item) => item.id === params.measurement,
   )
     ? (params.measurement as BedMeasurementId)
@@ -41,6 +43,7 @@ export default async function CheckoutPage({
   } : null;
   return (
     <CheckoutExperience
+      sharedSizes={options.sizes}
       initialItem={initialItem}
       receivingNumber={checkoutConfig.momoReceivingNumber}
       supportContact={checkoutConfig.paymentSupportContact}

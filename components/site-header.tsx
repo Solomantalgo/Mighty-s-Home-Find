@@ -7,9 +7,10 @@ import { useState } from "react";
 import { categories } from "@/lib/sample-data";
 import { useCart } from "@/components/cart-provider";
 
-export function SiteHeader() {
+export function SiteHeader({ categories: categoryItems = categories }: { categories?: typeof categories }) {
   const [open, setOpen] = useState(false);
   const { count, openCart } = useCart();
+  const shopHref = categoryItems.find((category) => category.href && category.href !== "#shop")?.href ?? "/#shop";
   return (
     <header className="site-header">
       <button
@@ -31,13 +32,13 @@ export function SiteHeader() {
       </Link>
       <nav className={`header-links ${open ? "open" : ""}`}>
         <Link
-          href="/products/classic-spindle?category=king-beds"
+          href={shopHref}
           onClick={() => setOpen(false)}
         >
           Shop Beds
         </Link>
         <Link
-          href="/products/classic-spindle?category=king-beds"
+          href={shopHref}
           onClick={() => setOpen(false)}
         >
           Build Your Bed
@@ -46,7 +47,7 @@ export function SiteHeader() {
           For Business
         </Link>
         <div className="menu-category-links" aria-label="Browse bed types">
-          {categories.map((category) => (
+          {categoryItems.map((category) => (
             <Link
               key={category.slug}
               href={category.href}

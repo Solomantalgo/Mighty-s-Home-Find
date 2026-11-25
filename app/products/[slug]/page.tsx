@@ -1,16 +1,19 @@
 import { notFound } from "next/navigation";
 import { ProductExperience } from "@/components/product-experience";
-import { categories, products } from "@/lib/sample-data";
+import { getStorefrontCatalog } from "@/lib/storefront-catalog";
+import { getCatalogueOptions } from "@/lib/catalogue-options";
 
-export function generateStaticParams() {
-  return products.map((product) => ({ slug: product.slug }));
-}
+export const dynamic = "force-dynamic";
 
 export default async function ProductPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ category?: string }> }) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
-  const product = products.find((item) => item.slug === slug);
+  const [catalog, options] = await Promise.all([getStorefrontCatalog(), getCatalogueOptions()]);
+  const productList = catalog.products;
+  const categoryList = catalog.categories;
+  const product = productList.find((item) => item.slug === slug);
   if (!product) notFound();
-  const category = categories.find((item) => item.slug === query.category) ?? categories.find((item) => item.slug === product.categorySlug) ?? categories[0];
+  const category = categoryList.find((item) => item.slug === query.category) ?? categoryList.find((item) => item.slug === product.categorySlug) ?? categoryList[0];
+  if (!category) notFound();
   const backHref = category.href;
-  return <ProductExperience product={product} backHref={backHref} categorySlug={category.slug}/>;
+  return <ProductExperience product={product} backHref={backHref} categorySlug={category.slug} catalogProducts={productList} catalogCategories={categoryList} sharedSizes={options.sizes}/>;
 }

@@ -1,5 +1,6 @@
 node_modules/
 .next/
+.local-media/
 out/
 build/
 dist/
@@ -20,3 +21,4 @@ Thumbs.db
 
 # TypeScript incremental cache
 *.tsbuildinfo
+.local-media/
