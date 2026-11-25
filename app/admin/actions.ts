@@ -227,9 +227,9 @@ export async function addImageSetAction(formData: FormData) {
   if (!auth.supabase || !auth.user) return { error: "Not authorised." };
   const productId = text(formData, "product_id", 40);
   const design = text(formData, "design", 120);
-  const size = text(formData, "image_size", 60);
+  const size = "standard";
   const colour = text(formData, "colour", 60);
-  if (!/^[0-9a-f-]{36}$/i.test(productId) || !design || !size || !colour) return { error: "Choose a design, image size and colour." };
+  if (!/^[0-9a-f-]{36}$/i.test(productId) || !design || !colour) return { error: "Choose a design and colour." };
   const { data: product } = await auth.supabase.from("products").select("id,status").eq("id", productId).maybeSingle();
   if (!product) return { error: "Listing not found." };
   if (product.status === "published") return { error: "Unpublish this listing before changing its image sets." };
@@ -403,10 +403,10 @@ export async function uploadConfiguratorImageAction(formData: FormData) {
   const match_confirmed = formData.get("match_confirmed") === "on";
   const file = formData.get("file");
   if (!/^[0-9a-f-]{36}$/i.test(variantId) || !["frame", "dressed"].includes(view) || !(file instanceof File)) return { error: "Choose a JPG, PNG or WebP image under 7 MB." };
-  if (!match_confirmed) return { error: "Confirm the image matches the selected design, image size and colour." };
-  const { data: variant } = await auth.supabase.from("variants").select("id,product_id,design,size,colour").eq("id", variantId).maybeSingle();
+  if (!match_confirmed) return { error: "Confirm the image matches the selected design and colour." };
+  const { data: variant } = await auth.supabase.from("variants").select("id,product_id,design,colour").eq("id", variantId).maybeSingle();
   if (!variant) return { error: "Variant not found." };
-  const alt_text = requestedAlt || `${variant.design} ${variant.size} ${variant.colour} bed, ${view === "frame" ? "frame only" : "dressed"}`;
+  const alt_text = requestedAlt || `${variant.design} ${variant.colour} bed, ${view === "frame" ? "frame only" : "dressed"}`;
   const { data: oldAsset } = await auth.supabase.from("configurator_assets").select("storage_path").eq("variant_id", variantId).eq("view", view).maybeSingle();
   let media: Awaited<ReturnType<typeof saveMediaImage>>;
   try { media = await saveMediaImage(file, `${variant.product_id}/configurator`); } catch (error) { return { error: error instanceof Error ? error.message : "Image upload failed." }; }
